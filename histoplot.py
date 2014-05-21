@@ -53,6 +53,7 @@ def main():
     input_stream = sys.stdin
 
   # read data into list, parse types into ints or skipping if not possible
+  #TODO: move more into munger.py
   data = []
   line_num = 0
   for line in input_stream:
@@ -64,14 +65,11 @@ def main():
       sys.stderr.write("Warning: "+str(ie)+'\n')
       continue
     try:
-      num = int(value)
+      num = munger.to_num(value)
     except ValueError:
-      try:
-        num = float(value)
-      except ValueError:
-        sys.stderr.write('Warning: Non-number encountered on line %d: %s\n' %
-          (line_num, line.rstrip('\r\n')))
-        continue
+      sys.stderr.write('Warning: Non-number encountered on line %d: %s\n' %
+        (line_num, line.rstrip('\r\n')))
+      continue
     data.append(num)
 
   if input_stream is not sys.stdin:

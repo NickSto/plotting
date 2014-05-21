@@ -76,13 +76,13 @@ def main():
     if xstr is None or ystr is None:
       continue
     try:
-      xval = to_num(xstr)
+      xval = munger.to_num(xstr)
     except ValueError:
       sys.stderr.write('Warning: Non-number encountered on line %d: %s\n' %
         (line_num, line.rstrip('\r\n')))
       continue
     try:
-      yval = to_num(ystr)
+      yval = munger.to_num(ystr)
     except ValueError:
       sys.stderr.write('Warning: Non-number encountered on line %d: %s\n' %
         (line_num, line.rstrip('\r\n')))
@@ -113,13 +113,6 @@ def main():
     pyplot.savefig(args.out_file, dpi=args.dpi)
   else:
     pyplot.show()
-
-
-def to_num(num_str):
-  try:
-    return int(num_str)
-  except ValueError:
-    return float(num_str)
 
 
 def fail(message):
