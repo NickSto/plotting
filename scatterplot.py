@@ -64,7 +64,6 @@ def main():
   x = []
   y = []
   line_num = 0
-  integers = True
   for line in input_stream:
     line_num+=1
     if args.field:
