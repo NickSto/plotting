@@ -67,25 +67,13 @@ def main():
   for line in input_stream:
     line_num+=1
     if args.field:
-      xstr = munger.get_field(line, field=args.field, tab=args.tab,
+      xval = munger.get_field(line, field=args.field, tab=args.tab, cast=True,
         errors='warn')
-      ystr = '1'
+      yval = '1'
     else:
-      (xstr, ystr) = munger.get_fields(line, fields=(args.xfield, args.yfield),
-        tab=args.tab, errors='warn')
-    if xstr is None or ystr is None:
-      continue
-    try:
-      xval = munger.to_num(xstr)
-    except ValueError:
-      sys.stderr.write('Warning: Non-number encountered on line %d: %s\n' %
-        (line_num, line.rstrip('\r\n')))
-      continue
-    try:
-      yval = munger.to_num(ystr)
-    except ValueError:
-      sys.stderr.write('Warning: Non-number encountered on line %d: %s\n' %
-        (line_num, line.rstrip('\r\n')))
+      (xval, yval) = munger.get_fields(line, fields=(args.xfield, args.yfield),
+        tab=args.tab, cast=True, errors='warn')
+    if xval is None or yval is None:
       continue
     x.append(xval)
     y.append(yval)
