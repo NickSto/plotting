@@ -9,9 +9,7 @@ from matplotlib import pyplot
 import matplotliblib
 import munger
 
-WIDTH_FACTOR = 1 # larger value for wider bars
-
-OPT_DEFAULTS = {'label_field':1, 'data_field':2, 'bins':10}
+OPT_DEFAULTS = {'label_field':1, 'data_field':2, 'bar_width':0.75}
 USAGE = """cat file.txt | %(prog)s [options]
        %(prog)s [options] file.txt"""
 DESCRIPTION = """Display a quick bar plot of the input data, using matplotlib.
@@ -36,11 +34,10 @@ def main(argv):
     '%(default)s.')
   parser.add_argument('-t', '--tab', action='store_true',
     help='Split fields on single tabs instead of whitespace.')
-  parser.add_argument('-o', '--out-file', metavar='OUTPUT_FILE',
-    help='Save the plot to this file instead of displaying it. The image '
-      'format will be inferred from the file extension.')
-  parser.add_argument('-r', '--range', type=float, nargs=2, metavar='BOUND',
-    help='Range of the Y axis. Give the lower bound, then the upper.')
+  parser.add_argument('-w', '--bar-width', type=float,
+    help='Relative width of each bar. A relative width of 1 means each bar '
+    'wil be the full width of its interval, with no spacing between bars. '
+    'Default: %(default)s.')
 
   matplotliblib.add_arguments(parser)
   args = parser.parse_args(argv[1:])
@@ -74,11 +71,13 @@ def main(argv):
     values.append(value)
 
   xlocations = numpy.arange(len(labels))
-  width = WIDTH_FACTOR * len(labels) / 10
+  width = args.bar_width * len(labels) / 5
 
-  pyplot.bar(xlocations, values, width)
+  # make the actual plot
+  pyplot = matplotliblib.preplot(**vars(args))
+  pyplot.bar(xlocations, values, width, color=args.color)
   pyplot.xticks(xlocations + width/2, labels)
-  pyplot.show()
+  matplotliblib.plot(pyplot, **vars(args))
 
 
 if __name__ == '__main__':
