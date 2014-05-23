@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 # a stacked bar plot with errorbars
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotliblib
+from __future__ import division
+import sys
+import numpy
+import argparse
 import collections
+from matplotlib import pyplot
+import matplotliblib
+import munger
+
+WIDTH_FACTOR = 1 # larger value for wider bars
 
 OPT_DEFAULTS = {'label_field':1, 'data_field':2, 'bins':10}
 USAGE = """cat file.txt | %(prog)s [options]
@@ -37,16 +43,15 @@ def main(argv):
     help='Range of the Y axis. Give the lower bound, then the upper.')
 
   matplotliblib.add_arguments(parser)
-  args = parser.parse_args(argv)
+  args = parser.parse_args(argv[1:])
 
   if args.file:
     input_stream = open(args.file, 'rU')
   else:
     input_stream = sys.stdin
 
-  # Read data into dict, mapping values in the label column to values in the
-  # data column (if they can be parsed to ints or floats).
-  data = collections.OrderedDict()
+  labels = []
+  values = []
   line_num = 0
   integers = True
   for line in input_stream:
@@ -60,40 +65,21 @@ def main(argv):
     if label is None or value_str is None:
       continue
     try:
-      value = to_num(value_str)
+      value = munger.to_num(value_str)
     except ValueError:
       sys.stderr.write('Warning: Non-number encountered on line %d: %s\n' %
         (line_num, line.rstrip('\r\n')))
       continue
-    values = data.get(label, [])
+    labels.append(label)
     values.append(value)
-    data[label] = values
 
-  
+  xlocations = numpy.arange(len(labels))
+  width = WIDTH_FACTOR * len(labels) / 10
+
+  pyplot.bar(xlocations, values, width)
+  pyplot.xticks(xlocations + width/2, labels)
+  pyplot.show()
 
 
-def to_num(num_str):
-  try:
-    return int(num_str)
-  except ValueError:
-    return float(num_str)
-
-N = 5
-menMeans   = (20, 35, 30, 35, 27)
-womenMeans = (25, 32, 34, 20, 25)
-menStd     = (2, 3, 4, 1, 2)
-womenStd   = (3, 5, 2, 3, 3)
-ind = np.arange(N)    # the x locations for the groups
-width = 0.35       # the width of the bars: can also be len(x) sequence
-
-p1 = plt.bar(ind, menMeans,   width, color='r', yerr=womenStd)
-p2 = plt.bar(ind, womenMeans, width, color='y',
-             bottom=menMeans, yerr=menStd)
-
-plt.ylabel('Scores')
-plt.title('Scores by group and gender')
-plt.xticks(ind+width/2., ('G1', 'G2', 'G3', 'G4', 'G5') )
-plt.yticks(np.arange(0,81,10))
-plt.legend( (p1[0], p2[0]), ('Men', 'Women') )
-
-plt.show()
+if __name__ == '__main__':
+  main(sys.argv)
