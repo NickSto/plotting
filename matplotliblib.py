@@ -16,6 +16,8 @@ def add_arguments(parser):
     help='Label for the X axis. Default: "%(default)s".')
   parser.add_argument('-Y', '--y-label',
     help='Label for the Y axis. Default: "%(default)s".')
+  parser.add_argument('-r', '--range', type=float, nargs=2, metavar='BOUND',
+    help='Range of the X axis and bins. Give the lower bound, then the upper.')
   parser.add_argument('-W', '--width', type=int,
     help='Width of the output image, in pixels. Default: {width}px.'.format(
       **DEFAULTS))
@@ -29,6 +31,9 @@ def add_arguments(parser):
   parser.add_argument('-C', '--color',
     help='Color for the plot data elements. Can use any CSS color. Default: '
       '"%(default)s".')
+  parser.add_argument('-o', '--out-file', metavar='OUTPUT_FILE',
+    help='Save the plot to this file instead of displaying it. The image '
+      'format will be inferred from the file extension.')
   return parser
 
 
@@ -103,14 +108,22 @@ def plot(pyplot, **args):
   Required keyword arguments:
   'x_label', 'y_label', 'title', 'x_range', 'out_file'
   """
-  required_opts = ['x_label', 'y_label', 'title', 'x_range', 'out_file']
+  required_opts = ['x_label', 'y_label', 'title', 'out_file']
   assert all([opt in args for opt in required_opts]), (
     'Necessary command-line arguments are missing.'
   )
+  assert 'x_range' in args or 'range' in args, (
+    'Necessary command-line arguments are missing.'
+  )
+  if 'x_range' in args:
+    if args['x_range'] is not None:
+      pyplot.xlim(*args['x_range'])
+  elif 'range' in args:
+    if args['range'] is not None:
+      pyplot.xlim(*args['range'])
+  
   pyplot.xlabel(args['x_label'])
   pyplot.ylabel(args['y_label'])
-  if args['x_range']:
-    pyplot.xlim(*args['x_range'])
   if args['title']:
     pyplot.title(args['title'])
   if args['out_file']:

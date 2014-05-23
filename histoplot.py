@@ -26,16 +26,11 @@ def main():
       'whitespace-delimited unless --tab is given. Default column: %(default)s.')
   parser.add_argument('-t', '--tab', action='store_true',
     help='Split fields on single tabs instead of whitespace.')
-  parser.add_argument('-o', '--out-file', metavar='OUTPUT_FILE',
-    help='Save the plot to this file instead of displaying it. The image '
-      'format will be inferred from the file extension.')
   parser.add_argument('-b', '--bins', type=int,
     help='Number of histogram bins. Default: %(default)s.')
   parser.add_argument('-B', '--bin-edges', nargs='+', type=float,
     help='Specify the exact edges of each bin. Give the value of each bin edge '
       'as a separate argument. Overrides --bins.')
-  parser.add_argument('-r', '--range', type=float, nargs=2, metavar='BOUND',
-    help='Range of the X axis and bins. Give the lower bound, then the upper.')
   parser.add_argument('-R', '--bin-range', type=float, nargs=2, metavar='BOUND',
     help='Range of the bins only. This will be used when calculating the size '
       'of the bins (unless -B is given), but it won\'t affect the scaling of '
