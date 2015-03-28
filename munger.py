@@ -43,7 +43,7 @@ def get_fields(line, fields=None, tab=False, cast=False, errors='silent'):
   for (i, field) in enumerate(fields):
     output[i] = deindex_or_error(line_fields, field-1, errors, line=line)
     # try to cast value, if requested
-    if cast:
+    if cast and output[i] is not None:
       output[i] = cast_or_error(output[i], errors, line=line)
   return output
 
