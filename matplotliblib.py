@@ -18,6 +18,9 @@ def add_arguments(parser):
   parser.add_argument('-Y', '--y-label',
     help='Label for the Y axis. Default: "%(default)s".')
   parser.add_argument('-r', '--range', type=float, nargs=2, metavar='BOUND',
+    help='Range of the axes. Both X and Y will have the same range. Give the '
+      'lower bound, then the upper.')
+  parser.add_argument('--x-range', type=float, nargs=2, metavar='BOUND',
     help='Range of the X axis. Give the lower bound, then the upper.')
   parser.add_argument('--y-range', type=float, nargs=2, metavar='BOUND',
     help='Range of the Y axis. Give the lower bound, then the upper.')
@@ -114,7 +117,7 @@ def plot(pyplot, **args):
     pyplot.hist(data)
     matplotliblib.plot(pyplot, **vars(args))
   Required keyword arguments:
-  'x_label', 'y_label', 'title', 'x_range', 'out_file'
+  'x_label', 'y_label', 'title', 'out_file'
   """
   required_opts = ('x_label', 'y_label', 'title', 'out_file')
   missing_opts = [opt for opt in required_opts if opt not in args]
@@ -122,20 +125,14 @@ def plot(pyplot, **args):
     'Necessary command-line arguments are missing: '+', '.join(missing_opts)
   )
 
-  # Take xlim from either range or x_range
-  #TODO: clean up
-  assert 'x_range' in args or 'range' in args, (
-    'Necessary command-line arguments are missing.'
-  )
-  if 'x_range' in args:
-    if args['x_range'] is not None:
-      pyplot.xlim(*args['x_range'])
-  elif 'range' in args:
-    if args['range'] is not None:
-      pyplot.xlim(*args['range'])
-  if 'y_range' in args:
-    if args['y_range'] is not None:
-      pyplot.ylim(*args['y_range'])
+  # Set X and Y ranges.
+  if args.get('range') is not None:
+    args['x_range'] = args['range']
+    args['y_range'] = args['range']
+  if args.get('x_range') is not None:
+    pyplot.xlim(*args['x_range'])
+  if args.get('y_range') is not None:
+    pyplot.ylim(*args['y_range'])
 
   # Apply rest of settings
   pyplot.xlabel(args['x_label'])
