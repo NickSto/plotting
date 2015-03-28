@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 from __future__ import division
 from matplotlib import pyplot
+import logging
 
 DEFAULTS = {'figsize':(8,6), 'dpi':80, 'width':640, 'height':480}
-OPT_DEFAULTS = {'x_label':'Value', 'y_label':'Frequency',
+OPT_DEFAULTS = {'x_label':'Value', 'y_label':'Frequency', 'verbosity':0,
   'color':'cornflowerblue'}
 
 
@@ -17,7 +18,9 @@ def add_arguments(parser):
   parser.add_argument('-Y', '--y-label',
     help='Label for the Y axis. Default: "%(default)s".')
   parser.add_argument('-r', '--range', type=float, nargs=2, metavar='BOUND',
-    help='Range of the X axis and bins. Give the lower bound, then the upper.')
+    help='Range of the X axis. Give the lower bound, then the upper.')
+  parser.add_argument('--y-range', type=float, nargs=2, metavar='BOUND',
+    help='Range of the Y axis. Give the lower bound, then the upper.')
   parser.add_argument('-W', '--width', type=int,
     help='Width of the output image, in pixels. Default: {width}px.'.format(
       **DEFAULTS))
@@ -31,6 +34,10 @@ def add_arguments(parser):
   parser.add_argument('-C', '--color',
     help='Color for the plot data elements. Can use any CSS color. Default: '
       '"%(default)s".')
+  parser.add_argument('-v', '--verbosity', type=int, nargs='?', const=1,
+    help='How much info to print to stderr. Give a number: 0 = silent, '
+      '1 = warnings only, 2 = warnings and informational messages. Default: '
+      '%(default)s.')
   parser.add_argument('-o', '--out-file', metavar='OUTPUT_FILE',
     help='Save the plot to this file instead of displaying it. The image '
       'format will be inferred from the file extension.')
@@ -96,6 +103,7 @@ def preplot(**args):
   Required keyword arguments: 'dpi', 'width', 'height'
   """
   (dpi, figsize) = scale(**args)
+  logging.debug("dpi: {}, figsize: {}".format(dpi, figsize))
   pyplot.figure(dpi=dpi, figsize=figsize)
   return pyplot
 
@@ -108,10 +116,14 @@ def plot(pyplot, **args):
   Required keyword arguments:
   'x_label', 'y_label', 'title', 'x_range', 'out_file'
   """
-  required_opts = ['x_label', 'y_label', 'title', 'out_file']
-  assert all([opt in args for opt in required_opts]), (
-    'Necessary command-line arguments are missing.'
+  required_opts = ('x_label', 'y_label', 'title', 'out_file')
+  missing_opts = [opt for opt in required_opts if opt not in args]
+  assert len(missing_opts) == 0, (
+    'Necessary command-line arguments are missing: '+', '.join(missing_opts)
   )
+
+  # Take xlim from either range or x_range
+  #TODO: clean up
   assert 'x_range' in args or 'range' in args, (
     'Necessary command-line arguments are missing.'
   )
@@ -121,11 +133,16 @@ def plot(pyplot, **args):
   elif 'range' in args:
     if args['range'] is not None:
       pyplot.xlim(*args['range'])
-  
+  if 'y_range' in args:
+    if args['y_range'] is not None:
+      pyplot.ylim(*args['y_range'])
+
+  # Apply rest of settings
   pyplot.xlabel(args['x_label'])
   pyplot.ylabel(args['y_label'])
   if args['title']:
     pyplot.title(args['title'])
+  # Display or save
   if args['out_file']:
     pyplot.savefig(args['out_file'])
   else:
