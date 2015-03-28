@@ -20,11 +20,11 @@ def main():
   parser.add_argument('file', nargs='?', metavar='file.txt',
     help='Data file. If omitted, data will be read from stdin. Each line '
       'should contain two numbers.')
-  parser.add_argument('-x', '--xfield', type=int,
+  parser.add_argument('-x', '--x-field', type=int,
     help='Use numbers from this input column as the x values. Give a 1-based '
       'index. Columns are whitespace-delimited unless --tab is given. '
       'Default column: %(default)s')
-  parser.add_argument('-y', '--yfield', type=int,
+  parser.add_argument('-y', '--y-field', type=int,
     help='Use numbers from this input column as the y values. Give a 1-based '
       'index. Columns are whitespace-delimited unless --tab is given. '
       'Default column: %(default)s')
@@ -56,7 +56,7 @@ def main():
         errors='warn')
       yval = '1'
     else:
-      (xval, yval) = munger.get_fields(line, fields=(args.xfield, args.yfield),
+      (xval, yval) = munger.get_fields(line, fields=(args.x_field, args.y_field),
         tab=args.tab, cast=True, errors='warn')
     if xval is None or yval is None:
       continue
