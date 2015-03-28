@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-import os
 import sys
 import argparse
-from matplotlib import pyplot
+import matplotliblib
 import munger
 
 OPT_DEFAULTS = {'xfield':1, 'yfield':2, 'xlabel':'X Value',
@@ -26,7 +25,7 @@ def main():
       'index. Columns are whitespace-delimited unless --tab is given. '
       'Default column: %(default)s')
   parser.add_argument('-y', '--yfield', type=int,
-    help='Use numbers from this input column as the x values. Give a 1-based '
+    help='Use numbers from this input column as the y values. Give a 1-based '
       'index. Columns are whitespace-delimited unless --tab is given. '
       'Default column: %(default)s')
   parser.add_argument('-f', '--field', type=int,
@@ -34,26 +33,12 @@ def main():
       'constant (1).')
   parser.add_argument('-t', '--tab', action='store_true',
     help='Split fields on single tabs instead of whitespace.')
-  parser.add_argument('-o', '--out-file', metavar='OUTPUT_FILE',
-    help='Save the plot to this file instead of displaying it. The image '
-      'format will be inferred from the file extension.')
-  parser.add_argument('-D', '--dpi', type=int,
-    help='DPI of the image, if saving to a file. If not given, matplotlib\'s '
-      'default will be used (seems to be about 100dpi).')
-  parser.add_argument('-T', '--title',
-    help='Plot title. Default: %(default)s')
-  parser.add_argument('-X', '--xlabel',
-    help='Label for the X axis. Default: %(default)s')
-  parser.add_argument('-Y', '--ylabel',
-    help='Label for the Y axis. Default: %(default)s')
-  parser.add_argument('-C', '--color',
-    help='Color for the data points. Can use any CSS color. Default: '
-      '"%(default)s".')
-  parser.add_argument('-r', '--xrange', type=float, nargs=2, metavar='BOUND',
-    help='Range of the X axis and bins. Give the lower bound, then the upper.')
-  parser.add_argument('-R', '--yrange', type=float, nargs=2, metavar='BOUND',
-    help='Range of the Y axis and bins. Give the lower bound, then the upper.')
+
+  matplotliblib.add_arguments(parser)
   args = parser.parse_args()
+
+  if args.field and not args.y_range:
+    args.y_range = (0, 2)
 
   if args.file:
     input_stream = open(args.file, 'rU')
@@ -82,25 +67,13 @@ def main():
     input_stream.close()
 
   assert len(x) == len(y), 'Length of x and y lists is different.'
-
   if len(x) == 0 or len(y) == 0:
+    print 'No data found.'
     sys.exit(0)
 
+  pyplot = matplotliblib.preplot(**vars(args))
   pyplot.scatter(x, y, c=args.color)
-  pyplot.xlabel(args.xlabel)
-  pyplot.ylabel(args.ylabel)
-  if args.xrange:
-    pyplot.xlim(*args.xrange)
-  if args.yrange:
-    pyplot.ylim(*args.yrange)
-  elif args.field:
-    pyplot.ylim(0, 2)
-  if args.title:
-    pyplot.title(args.title)
-  if args.out_file:
-    pyplot.savefig(args.out_file, dpi=args.dpi)
-  else:
-    pyplot.show()
+  matplotliblib.plot(pyplot, **vars(args))
 
 
 def fail(message):
