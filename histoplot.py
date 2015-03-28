@@ -2,11 +2,12 @@
 from __future__ import division
 import os
 import sys
+import logging
 import argparse
 import matplotliblib
 import munger
 
-OPT_DEFAULTS = {'field':1, 'bins':10}
+OPT_DEFAULTS = {'field':1, 'bins':20}
 USAGE = """cat file.txt | %(prog)s [options]
        %(prog)s [options] file.txt"""
 DESCRIPTION = """Display a quick histogram of the input data, using matplotlib.
@@ -31,6 +32,7 @@ def main():
   parser.add_argument('-B', '--bin-edges', nargs='+', type=float,
     help='Specify the exact edges of each bin. Give the value of each bin edge '
       'as a separate argument. Overrides --bins.')
+  #TODO: clarify relationship between bin_range, x_range, and range
   parser.add_argument('-R', '--bin-range', type=float, nargs=2, metavar='BOUND',
     help='Range of the bins only. This will be used when calculating the size '
       'of the bins (unless -B is given), but it won\'t affect the scaling of '
@@ -46,6 +48,19 @@ def main():
     input_stream = open(args.file, 'rU')
   else:
     input_stream = sys.stdin
+
+  if args.verbosity == 1:
+    loglevel = logging.WARNING
+  elif args.verbosity == 2:
+    loglevel = logging.INFO
+  elif args.verbosity == 3:
+    loglevel = logging.DEBUG
+  elif args.verbosity >= 4:
+    loglevel = logging.NOTSET
+  if args.verbosity > 0:
+    logging.basicConfig(stream=sys.stderr, level=loglevel, format='%(message)s')
+  else:
+    logging.disable(logging.CRITICAL)
 
   # read data into list, parse types into ints or skipping if not possible
   data = []
