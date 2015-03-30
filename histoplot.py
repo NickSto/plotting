@@ -37,9 +37,6 @@ def main():
     help='Range of the bins only. This will be used when calculating the size '
       'of the bins (unless -B is given), but it won\'t affect the scaling of '
       'the X axis. Give the lower bound, then the upper.')
-  parser.add_argument('-S', '--x-range', type=float, nargs=2, metavar='BOUND',
-    help='Range of the X axis only. This will change the scale of the X axis, '
-      'but not the size of the bins. Give the lower bound, then the upper.')
 
   matplotliblib.add_arguments(parser)
   args = parser.parse_args()
@@ -92,7 +89,6 @@ def main():
     bins = args.bins
   if args.range:
     bin_range = args.range
-    args.x_range = args.range
   else:
     bin_range = args.bin_range
   
