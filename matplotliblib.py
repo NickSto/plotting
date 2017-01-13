@@ -4,8 +4,7 @@ from matplotlib import pyplot
 import logging
 
 DEFAULTS = {'figsize':(8,6), 'dpi':80, 'width':640, 'height':480}
-OPT_DEFAULTS = {'x_label':'Value', 'y_label':'Frequency', 'verbosity':0,
-  'color':'cornflowerblue'}
+OPT_DEFAULTS = {'verbosity':0, 'color':'cornflowerblue'}
 
 
 def add_arguments(parser):

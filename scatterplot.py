@@ -5,7 +5,7 @@ import matplotliblib
 import munger
 
 OPT_DEFAULTS = {'x_field':1, 'y_field':2, 'x_label':'X Value',
-  'y_label':'Y Value', 'color':'cornflowerblue'}
+                'y_label':'Y Value', 'color':'cornflowerblue'}
 USAGE = """cat file.txt | %(prog)s [options]
        %(prog)s [options] file.txt"""
 DESCRIPTION = """Display a quick histogram of the input data, using matplotlib.

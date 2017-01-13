@@ -7,7 +7,7 @@ import argparse
 import matplotliblib
 import munger
 
-OPT_DEFAULTS = {'field':1, 'bins':20}
+OPT_DEFAULTS = {'field':1, 'bins':20, 'x_label':'Value', 'y_label':'Frequency'}
 USAGE = """cat file.txt | %(prog)s [options]
        %(prog)s [options] file.txt"""
 DESCRIPTION = """Display a quick histogram of the input data, using matplotlib.
