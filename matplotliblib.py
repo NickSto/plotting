@@ -33,6 +33,8 @@ def add_arguments(parser):
     help='DPI of the image. If a height or width is given, a larger DPI will '
       'effectively just scale up the plot features, and a smaller DPI will '
       'scale them down. Default: {dpi}dpi.'.format(**DEFAULTS))
+  parser.add_argument('--no-tight', action='store_true',
+    help='Turn off tight_layout() (in case it\'s causing problems).')
   parser.add_argument('-C', '--color',
     help='Color for the plot data elements. Can use any CSS color. Default: '
       '"%(default)s".')
@@ -138,6 +140,8 @@ def plot(pyplot, **args):
   pyplot.ylabel(args['y_label'])
   if args['title']:
     pyplot.title(args['title'])
+  if not args.get('no_tight'):
+    pyplot.tight_layout()
   # Display or save
   if args['out_file']:
     pyplot.savefig(args['out_file'])
