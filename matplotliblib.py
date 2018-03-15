@@ -147,3 +147,4 @@ def plot(pyplot, **args):
     pyplot.savefig(args['out_file'])
   else:
     pyplot.show()
+  pyplot.close()
