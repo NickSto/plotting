@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 from __future__ import division
-import os
 import sys
 import logging
 import argparse
 import matplotliblib
 import munger
 
-OPT_DEFAULTS = {'field':1, 'bins':20, 'x_label':'Value', 'y_label':'Frequency'}
+DEFAULT_BINS = 20
+OPT_DEFAULTS = {'field':1, 'x_label':'Value', 'y_label':'Frequency'}
 USAGE = """cat file.txt | %(prog)s [options]
        %(prog)s [options] file.txt"""
 DESCRIPTION = """Display a quick histogram of the input data, using matplotlib.
@@ -27,8 +27,10 @@ def main():
       'whitespace-delimited unless --tab is given. Default column: %(default)s.')
   parser.add_argument('-t', '--tab', action='store_true',
     help='Split fields on single tabs instead of whitespace.')
+  parser.add_argument('-u', '--unity', action='store_true',
+    help='Use a bin size of 1.')
   parser.add_argument('-b', '--bins', type=int,
-    help='Number of histogram bins. Default: %(default)s.')
+    help='Number of histogram bins. Default: {}.'.format(DEFAULT_BINS))
   parser.add_argument('-B', '--bin-edges', nargs='+', type=float,
     help='Specify the exact edges of each bin. Give the value of each bin edge '
       'as a separate argument. Overrides --bins.')
@@ -61,6 +63,8 @@ def main():
 
   # read data into list, parse types into ints or skipping if not possible
   data = []
+  top = -sys.maxsize
+  bottom = sys.maxsize
   line_num = 0
   for line in input_stream:
     line_num+=1
@@ -74,6 +78,10 @@ def main():
       sys.stderr.write('Warning: Non-number encountered on line %d: %s\n' %
         (line_num, line.rstrip('\r\n')))
       continue
+    if value < bottom:
+      bottom = value
+    if value > top:
+      top = value
     data.append(value)
 
   if input_stream is not sys.stdin:
@@ -85,13 +93,35 @@ def main():
   # Compute plot settings from arguments
   if args.bin_edges:
     bins = args.bin_edges
-  else:
+  elif args.bins:
     bins = args.bins
+  else:
+    bins = DEFAULT_BINS
   if args.range:
     bin_range = args.range
   else:
     bin_range = args.bin_range
-  
+  if args.unity:
+    if args.bins:
+      if args.bin_range:
+        fail('Error: Cannot meet constraints of --bins {}, --bin-range {} {}, and --unity.'
+             .format(args.bins, args.bin_range[0], args.bin_range[1]))
+      else:
+        bin_range = (bottom-0.5, bottom+args.bins+0.5)
+        print('Saw --bins {}, using --bins {} --bin-range {} {}.'
+              .format(args.bins, bins, bin_range[0], bin_range[1]))
+    else:
+      if args.bin_range:
+        bins = args.bin_range[1] - args.bin_range[0] + 1
+        bin_range = (args.bin_range[0]-0.5, args.bin_range[1]+0.5)
+      else:
+        bins = top - bottom + 1
+        bin_range = (bottom-0.5, top+0.5)
+        if bins > 200:
+          fail('Error: Range of data is {}. Using that many bins will be hard to read. If you '
+               'really want that many, please provide it explicitly to --bins.'.format(bins))
+
+
   # make the actual plot
   pyplot = matplotliblib.preplot(**vars(args))
   pyplot.hist(data, bins=bins, range=bin_range, color=args.color)
