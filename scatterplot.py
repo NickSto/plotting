@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from __future__ import division
 import sys
 import time
@@ -8,7 +8,7 @@ import matplotliblib
 import munger
 
 OPT_DEFAULTS = {'x_field':1, 'y_field':2, 'x_label':'X Value', 'time_unit':'sec', 'time_disp':'ago',
-                'y_label':'Y Value', 'unix_time':False, 'color':'cornflowerblue'}
+                'y_label':'Y Value', 'date_ticks':10, 'unix_time':False, 'color':'cornflowerblue'}
 USAGE = """cat file.txt | %(prog)s [options]
        %(prog)s [options] file.txt"""
 DESCRIPTION = """Display a quick histogram of the input data, using matplotlib.
@@ -44,6 +44,8 @@ def main():
     'min', 'minute', 'minutes', 'hour', 'hours', 'hr', 'day', 'days', 'week',
     'weeks', 'month', 'months', 'year', 'years'),
     help='The unit with which to display the time field. Default: %(default)s')
+  parser.add_argument('--date-ticks', type=int,
+    help='The maximum number of ticks to put on the time axis when using --date.')
 
   matplotliblib.add_arguments(parser)
   args = parser.parse_args()
@@ -94,7 +96,7 @@ def main():
 
   assert len(x) == len(y), 'Length of x and y lists is different.'
   if len(x) == 0 or len(y) == 0:
-    print 'No data found.'
+    sys.stderr.write('No data found.\n')
     sys.exit(0)
 
   pyplot = matplotliblib.preplot(**vars(args))
@@ -107,7 +109,7 @@ def main():
     elif time_field == 'y':
       time_max = max(y)
       time_min = min(y)
-    tick_values, tick_labels = get_time_ticks(time_min, time_max, num_ticks=15)
+    tick_values, tick_labels = get_time_ticks(time_min, time_max, num_ticks=args.date_ticks)
     if time_field == 'x':
       pyplot.xticks(tick_values, tick_labels)
     elif time_field == 'y':
@@ -124,22 +126,25 @@ def get_time_unit(unit):
 
 def get_time_ticks(time_min, time_max, num_ticks=15):
   time_unit = get_tick_size(time_min, time_max, num_ticks)
-  # Python 3: Just use fromtimestamp().
-  min_dt = datetime.datetime.utcfromtimestamp(time_min)
-  dt = round_datetime(min_dt, time_unit)
-  delta = datetime.timedelta(seconds=time_unit.seconds)
-  first_tick_dt = dt + delta
-  # Python 3: first_tick_value = first_tick_dt.timestamp()
-  epoch_start = datetime.datetime.utcfromtimestamp(0)
-  first_tick_value = int((first_tick_dt - epoch_start).total_seconds())
+  # Python 2:
+  # min_dt = datetime.datetime.utcfromtimestamp(time_min)
+  min_dt = datetime.datetime.fromtimestamp(time_min)
+  dt = floor_datetime(min_dt, time_unit)
+  first_tick_dt = increment_datetime(dt, time_unit)
+  first_tick_value = int(first_tick_dt.timestamp())
+  # Python 2:
+  # epoch_start = datetime.datetime.utcfromtimestamp(0)
+  # first_tick_value = int((first_tick_dt - epoch_start).total_seconds())
   tick_values = []
   tick_labels = []
-  format_str = get_datetime_rounded_format(time_unit)
-  for tick_value in range(first_tick_value, time_max, time_unit.seconds):
+  tick_dt = first_tick_dt
+  tick_value = first_tick_value
+  while tick_value < time_max:
     tick_values.append(tick_value)
-    tick_dt = datetime.datetime.fromtimestamp(tick_value)
-    tick_label = tick_dt.strftime(format_str)
+    tick_label = tick_dt.strftime(time_unit.format_rounded)
     tick_labels.append(tick_label)
+    tick_dt = increment_datetime(tick_dt, time_unit)
+    tick_value = int(tick_dt.timestamp())
   # If there are too many ticks, eliminate some.
   # This can happen if the time span is larger than num_ticks years.
   if len(tick_values) > num_ticks:
@@ -165,7 +170,7 @@ def get_tick_size(time_min, time_max, num_ticks=15):
   return Year
 
 
-def round_datetime(dt, time_unit):
+def floor_datetime(dt, time_unit):
   """Round a datetime down to the nearest time_unit.
   dt must be a datetime.datetime and time_unit must be a TimeUnit."""
   dt_dict = {}
@@ -176,24 +181,48 @@ def round_datetime(dt, time_unit):
     if time_unit == Week and this_unit == Day:
       unit_value = unit_value - (unit_value % 7)
     elif this_unit.seconds < time_unit.seconds:
-      if this_unit in (Day, Month):
-        unit_value = 1
-      else:
-        unit_value = 0
+      unit_value = this_unit.min_value
     dt_dict[this_unit.name] = unit_value
   return datetime.datetime(**dt_dict)
 
 
-def get_datetime_rounded_format(time_unit):
-  """Return the format string '%Y-%m-%d %H:%M:%S', but with everything after the given TimeUnit
-  removed."""
-  format_str = ''
-  for this_unit in reversed(TIME_UNITS):
+def increment_datetime(dt, time_unit):
+  dt_dict = {}
+  carry = 0
+  for this_unit in TIME_UNITS:
     if this_unit == Week:
-      continue
-    format_str += this_unit.format_sep + this_unit.format
-    if this_unit == time_unit:
-      return format_str
+      if time_unit == Week:
+        unit_value = dt.day + 7
+        this_unit = Day
+      else:
+        continue
+    else:
+      unit_value = getattr(dt, this_unit.name)
+      if this_unit == time_unit:
+        unit_value += 1
+      unit_value += carry
+    # Figure out whether the unit overflowed and needs to be wrapped to zero, with a carry.
+    if this_unit == Day:
+      if dt.month == 2:
+        if is_leap_year(dt.year):
+          max_value = 29
+        else:
+          max_value = 28
+      else:
+        max_value = MONTH_LENGTHS[dt.month]
+    else:
+      max_value = this_unit.max_value
+    if unit_value > max_value:
+      carry = 1
+      unit_value = this_unit.min_value + unit_value - max_value - 1
+    else:
+      carry = 0
+    dt_dict[this_unit.name] = unit_value
+  return datetime.datetime(**dt_dict)
+
+
+def is_leap_year(year):
+  return (year % 4 == 0 and year % 100 != 0) or year % 400 == 0
 
 
 class TimeUnit(object):
@@ -203,52 +232,68 @@ class Second(TimeUnit):
   name = 'second'
   abbrev = 'sec'
   format = '%S'
-  format_sep = ':'
+  format_rounded = '%Y-%m-%d %H:%M:%S'
+  min_value = 0
+  max_value = 59
   seconds = 1
 
 class Minute(TimeUnit):
   name = 'minute'
   abbrev = 'min'
   format = '%M'
-  format_sep = ':'
+  format_rounded = '%Y-%m-%d %H:%M'
+  min_value = 0
+  max_value = 59
   seconds = Second.seconds * 60
 
 class Hour(TimeUnit):
   name = 'hour'
   abbrev = 'hr'
   format = '%H'
-  format_sep = ' '
+  format_rounded = '%Y-%m-%d %H:00'
+  min_value = 0
+  max_value = 23
   seconds = Minute.seconds * 60
 
 class Day(TimeUnit):
   name = 'day'
   abbrev = 'day'
   format = '%d'
-  format_sep = '-'
+  format_rounded = '%Y-%m-%d'
+  min_value = 1
+  max_value = 31
   seconds = Hour.seconds * 24
 
 class Week(TimeUnit):
   name = 'week'
   abbrev = 'week'
   format = '%d'
-  format_sep = '-'
+  format_rounded = '%Y-%m-%d'
+  min_value = 0
+  max_value = 4
   seconds = Day.seconds * 7
 
 class Month(TimeUnit):
   name = 'month'
   abbrev = 'mo'
-  format = '%m'
-  format_sep = '-'
+  format = '%b'
+  format_rounded = '%b %Y'
+  min_value = 1
+  max_value = 12
   seconds = int(Day.seconds * 30.5)
 
 class Year(TimeUnit):
   name = 'year'
   abbrev = 'yr'
   format = '%Y'
-  format_sep = ''
+  format_rounded = '%Y'
+  min_value = -sys.maxsize
+  max_value = sys.maxsize
   seconds = int(Day.seconds * 365.25)
 
 TIME_UNITS = (Second, Minute, Hour, Day, Week, Month, Year)
+
+MONTH_LENGTHS = {1:31, 2:28, 3:31, 4:30, 5:31, 6:30, 7:31, 8:31, 9:30, 10:31, 11:30, 12:31}
 
 
 def fail(message):
