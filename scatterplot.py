@@ -1,11 +1,13 @@
 #!/usr/bin/env python
+from __future__ import division
 import sys
+import time
 import argparse
 import matplotliblib
 import munger
 
-OPT_DEFAULTS = {'x_field':1, 'y_field':2, 'x_label':'X Value',
-                'y_label':'Y Value', 'color':'cornflowerblue'}
+OPT_DEFAULTS = {'x_field':1, 'y_field':2, 'x_label':'X Value', 'time_unit':'sec',
+                'y_label':'Y Value', 'unix_time':False, 'color':'cornflowerblue'}
 USAGE = """cat file.txt | %(prog)s [options]
        %(prog)s [options] file.txt"""
 DESCRIPTION = """Display a quick histogram of the input data, using matplotlib.
@@ -28,6 +30,12 @@ def main():
     help='Use numbers from this input column as the y values. Give a 1-based '
       'index. Columns are whitespace-delimited unless --tab is given. '
       'Default column: %(default)s')
+  parser.add_argument('-u', '--unix-time', choices=('X', 'Y', 'x', 'y'),
+    help='Interpret the values for this axis as unix timestamps.')
+  parser.add_argument('-U', '--time-unit', choices=('sec', 'second', 'seconds',
+    'min', 'minute', 'minutes', 'hour', 'hours', 'hr', 'day', 'days', 'week',
+    'weeks', 'month', 'months', 'year', 'years'),
+    help='The unit with which to display the time field. Default: %(default)s')
   parser.add_argument('-f', '--field', type=int,
     help='1-dimensional data. Use this column as x values and set y as a '
       'constant (1).')
@@ -45,6 +53,13 @@ def main():
   else:
     input_stream = sys.stdin
 
+  if args.unix_time:
+    now = int(time.time())
+    time_conversion, time_label = get_time_conversion(args.time_unit)
+    if args.x_label == OPT_DEFAULTS['x_label']:
+      args.x_label = time_label
+    time_field = args.unix_time.lower()
+
   # read data into list, parse types into ints or skipping if not possible
   x = []
   y = []
@@ -60,6 +75,11 @@ def main():
         tab=args.tab, cast=True, errors='warn')
     if xval is None or yval is None:
       continue
+    if time_field == 'x':
+      xval = (xval - now) / time_conversion
+      # print xval
+    elif time_field == 'y':
+      yval = (yval - now) / time_conversion
     x.append(xval)
     y.append(yval)
 
@@ -76,9 +96,27 @@ def main():
   matplotliblib.plot(pyplot, **vars(args))
 
 
+def get_time_conversion(unit):
+  if unit.startswith('sec'):
+    return 1, 'Seconds ago'
+  elif unit.startswith('min'):
+    return 60, 'Minutes ago'
+  elif unit.startswith('hour') or unit == 'hr':
+    return 60*60, 'Hours ago'
+  elif unit.startswith('day'):
+    return 60*60*24, 'Days ago'
+  elif unit.startswith('week'):
+    return 60*60*24*7, 'Weeks ago'
+  elif unit.startswith('month'):
+    return 60*60*24*30.5, 'Months ago'
+  elif unit.startswith('year'):
+    return 60*60*24*365.25, 'Years ago'
+
+
 def fail(message):
   sys.stderr.write(message+"\n")
   sys.exit(1)
+
 
 if __name__ == "__main__":
   main()
