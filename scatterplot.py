@@ -2,11 +2,13 @@
 from __future__ import division
 import sys
 import time
+import math
 import argparse
 import datetime
 import matplotliblib
 import munger
 
+MIN_TICKS = 5
 OPT_DEFAULTS = {'x_field':1, 'y_field':2, 'x_label':'X Value', 'time_unit':'sec', 'time_disp':'ago',
                 'y_label':'Y Value', 'date_ticks':10, 'unix_time':False, 'color':'cornflowerblue'}
 USAGE = """cat file.txt | %(prog)s [options]
@@ -109,7 +111,13 @@ def main():
     elif time_field == 'y':
       time_max = max(y)
       time_min = min(y)
-    tick_values, tick_labels = get_time_ticks(time_min, time_max, num_ticks=args.date_ticks)
+    max_ticks = args.date_ticks
+    if max_ticks > MIN_TICKS:
+      min_ticks = MIN_TICKS
+    else:
+      min_ticks = args.date_ticks - 1
+    tick_values, tick_labels = get_time_ticks(time_min, time_max,
+                                              min_ticks=min_ticks, max_ticks=max_ticks)
     if time_field == 'x':
       pyplot.xticks(tick_values, tick_labels)
     elif time_field == 'y':
@@ -124,8 +132,8 @@ def get_time_unit(unit):
       return time_unit
 
 
-def get_time_ticks(time_min, time_max, num_ticks=15):
-  time_unit = get_tick_size(time_min, time_max, num_ticks)
+def get_time_ticks(time_min, time_max, min_ticks=5, max_ticks=15):
+  time_unit, multiple = get_tick_size(time_min, time_max, min_ticks, max_ticks)
   # Python 2:
   # min_dt = datetime.datetime.utcfromtimestamp(time_min)
   min_dt = datetime.datetime.fromtimestamp(time_min)
@@ -140,34 +148,37 @@ def get_time_ticks(time_min, time_max, num_ticks=15):
   tick_dt = first_tick_dt
   tick_value = first_tick_value
   while tick_value < time_max:
+    #TODO: Abbreviate labels so that we don't keep repeating the same year/month/day/hour/etc.
+    #      E.g. If the time period is a few hours, list "2015-05-10 20:00" for the first tick, then
+    #      just "21:00" for the next one, and only show the date again when it changes
+    #      ("2015-05-11 00:00").
     tick_values.append(tick_value)
     tick_label = tick_dt.strftime(time_unit.format_rounded)
     tick_labels.append(tick_label)
-    tick_dt = increment_datetime(tick_dt, time_unit)
+    tick_dt = increase_datetime(tick_dt, time_unit, multiple)
     tick_value = int(tick_dt.timestamp())
-  # If there are too many ticks, eliminate some.
-  # This can happen if the time span is larger than num_ticks years.
-  if len(tick_values) > num_ticks:
-    keep_frequency = int((len(tick_values)-1) / num_ticks) + 1
-    new_tick_values = []
-    new_tick_labels = []
-    i = 0
-    for tick_value, tick_label in zip(tick_values, tick_labels):
-      if i % keep_frequency == 0:
-        new_tick_values.append(tick_value)
-        new_tick_labels.append(tick_label)
-      i += 1
-    tick_values = new_tick_values
-    tick_labels = new_tick_labels
   return tick_values, tick_labels
 
 
-def get_tick_size(time_min, time_max, num_ticks=15):
+def get_tick_size(time_min, time_max, min_ticks, max_ticks):
+  """Find a tick size for the time axis that gives between a min and max number of ticks.
+  Determines what multiple of which TimeUnit and returns (time_unit, multiple)."""
   time_period = time_max - time_min
+  min_multiple = sys.maxsize
+  min_multiple_unit = None
   for time_unit in TIME_UNITS:
-    if time_period/time_unit.seconds <= num_ticks:
-      return time_unit
-  return Year
+    ticks = time_period / time_unit.seconds
+    if ticks < min_ticks:
+      multiple = 1
+    elif ticks > max_ticks:
+      multiple = math.ceil(ticks/max_ticks)
+    else:
+      return time_unit, 1
+    ticks = time_period / (time_unit.seconds*multiple)
+    if min_ticks <= ticks <= max_ticks and multiple < min_multiple:
+      min_multiple = multiple
+      min_multiple_unit = time_unit
+  return min_multiple_unit, min_multiple
 
 
 def floor_datetime(dt, time_unit):
@@ -184,6 +195,16 @@ def floor_datetime(dt, time_unit):
       unit_value = this_unit.min_value
     dt_dict[this_unit.name] = unit_value
   return datetime.datetime(**dt_dict)
+
+
+def increase_datetime(dt, time_unit, amount):
+  """Increase the datetime `dt` by `amount` `time_unit`s."""
+  # Currently this only increments by 1 at a time in order to avoid complicated math.
+  #TODO: Complicated math.
+  new_dt = dt
+  for i in range(amount):
+    new_dt = increment_datetime(new_dt, time_unit)
+  return new_dt
 
 
 def increment_datetime(dt, time_unit):
