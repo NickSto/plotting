@@ -62,68 +62,81 @@ def main(argv):
     args.y_range = (0, 2)
 
   if args.unix_time:
-    now = int(time.time())
     if args.x_label == OPT_DEFAULTS['x_label']:
       if args.time_disp == 'ago':
         args.x_label = args.time_unit.name.capitalize() + 's ago'
       else:
         args.x_label = 'Date'
     time_field = args.unix_time.lower()
+  else:
+    time_field = None
 
-  # read data into list, parse types into ints or skipping if not possible
-  x = []
-  y = []
-  line_num = 0
-  for line in args.input:
-    line_num+=1
-    if args.field:
-      xval = munger.get_field(line, field=args.field, tab=args.tab, cast=True,
-        errors='warn')
-      yval = '1'
-    else:
-      (xval, yval) = munger.get_fields(line, fields=(args.x_field, args.y_field),
-        tab=args.tab, cast=True, errors='warn')
-    if xval is None or yval is None:
-      continue
-    if args.time_disp == 'ago':
-      if time_field == 'x':
-        xval = (xval - now) / args.time_unit.seconds
-      else:
-        yval = (yval - now) / args.time_unit.seconds
-    x.append(xval)
-    y.append(yval)
+  x, y = read_data(args.input, args.field, args.x_field, args.y_field, args.tab,
+                   time_field, args.time_disp, args.time_unit)
 
   if args.input is not sys.stdin:
     args.input.close()
 
-  assert len(x) == len(y), 'Length of x and y lists is different.'
+  assert len(x) == len(y), 'Length of x and y lists is different ({} != {}).'.format(len(x), len(y))
   if len(x) == 0 or len(y) == 0:
-    sys.stderr.write('No data found.\n')
+    logging.info('No data found.')
     sys.exit(0)
 
+  make_plot(x, y, args, time_field)
+
+
+def read_data(input, field, x_field, y_field, tab, time_field, time_disp, time_unit):
+  # read data into lists, parse types into ints or skipping if not possible
+  now = int(time.time())
+  x = []
+  y = []
+  line_num = 0
+  for line in input:
+    line_num+=1
+    if field:
+      xval = munger.get_field(line, field=field, tab=tab, cast=True, errors='warn')
+      yval = '1'
+    else:
+      xval, yval = munger.get_fields(line, fields=(x_field, y_field),
+                                     tab=tab, cast=True, errors='warn')
+    if xval is None or yval is None:
+      continue
+    if time_disp == 'ago':
+      if time_field == 'x':
+        xval = (xval - now) / time_unit.seconds
+      else:
+        yval = (yval - now) / time_unit.seconds
+    x.append(xval)
+    y.append(yval)
+  return x, y
+
+
+def make_plot(x, y, args, time_field):
   pyplot = matplotliblib.preplot(**vars(args))
   pyplot.scatter(x, y, c=args.color)
+  set_ticks(pyplot, x, y, args.unix_time, args.time_disp, time_field, args.date_ticks)
+  matplotliblib.plot(pyplot, **vars(args))
 
-  if args.unix_time and args.time_disp == 'date':
+
+def set_ticks(pyplot, x, y, unix_time, time_disp, time_field, date_ticks):
+  if unix_time and time_disp == 'date':
     if time_field == 'x':
       time_max = max(x)
       time_min = min(x)
     elif time_field == 'y':
       time_max = max(y)
       time_min = min(y)
-    max_ticks = args.date_ticks
+    max_ticks = date_ticks
     if max_ticks > MIN_TICKS:
       min_ticks = MIN_TICKS
     else:
-      min_ticks = args.date_ticks - 1
+      min_ticks = date_ticks - 1
     tick_values, tick_labels = get_time_ticks(time_min, time_max,
                                               min_ticks=min_ticks, max_ticks=max_ticks)
     if time_field == 'x':
       pyplot.xticks(tick_values, tick_labels)
     elif time_field == 'y':
       pyplot.yticks(tick_values, tick_labels)
-
-  matplotliblib.plot(pyplot, **vars(args))
 
 
 def get_time_ticks(time_min, time_max, min_ticks=5, max_ticks=15):
