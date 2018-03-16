@@ -95,7 +95,7 @@ def read_data(input, field, x_field, y_field, tab, time_field, time_disp, time_u
     line_num+=1
     if field:
       xval = munger.get_field(line, field=field, tab=tab, cast=True, errors='warn')
-      yval = '1'
+      yval = 1
     else:
       xval, yval = munger.get_fields(line, fields=(x_field, y_field),
                                      tab=tab, cast=True, errors='warn')
@@ -104,7 +104,7 @@ def read_data(input, field, x_field, y_field, tab, time_field, time_disp, time_u
     if time_disp == 'ago':
       if time_field == 'x':
         xval = (xval - now) / time_unit.seconds
-      else:
+      elif time_field == 'y':
         yval = (yval - now) / time_unit.seconds
     x.append(xval)
     y.append(yval)
