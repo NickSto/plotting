@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-from __future__ import division
 import sys
 import time
 import math
+import logging
 import argparse
 import datetime
 import matplotliblib
@@ -55,6 +55,8 @@ def main(argv):
   parser = make_parser()
   matplotliblib.add_arguments(parser)
   args = parser.parse_args(argv[1:])
+
+  logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')
 
   if args.field and not args.y_range:
     args.y_range = (0, 2)

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from __future__ import division
 import sys
 import logging
 import argparse
@@ -48,18 +47,7 @@ def main(argv):
   matplotliblib.add_arguments(parser)
   args = parser.parse_args(argv[1:])
 
-  if args.verbosity == 1:
-    loglevel = logging.WARNING
-  elif args.verbosity == 2:
-    loglevel = logging.INFO
-  elif args.verbosity == 3:
-    loglevel = logging.DEBUG
-  elif args.verbosity >= 4:
-    loglevel = logging.NOTSET
-  if args.verbosity > 0:
-    logging.basicConfig(stream=sys.stderr, level=loglevel, format='%(message)s')
-  else:
-    logging.disable(logging.CRITICAL)
+  logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')
 
   # read data into list, parse types into ints or skipping if not possible
   data = []

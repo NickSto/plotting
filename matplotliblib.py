@@ -1,15 +1,14 @@
-#!/usr/bin/env python
-from __future__ import division
+#!/usr/bin/env python3
+import sys
+import argparse
 from matplotlib import pyplot
 import logging
 
 DEFAULTS = {'figsize':(8,6), 'dpi':80, 'width':640, 'height':480}
-OPT_DEFAULTS = {'verbosity':0, 'color':'cornflowerblue'}
 
 
 def add_arguments(parser):
   """Add global matplotlib plotting arguments to the argparse parser."""
-  parser.set_defaults(**OPT_DEFAULTS)
   parser.add_argument('-T', '--title',
     help='Plot title. Default: "%(default)s".')
   parser.add_argument('-X', '--x-label',
@@ -35,16 +34,19 @@ def add_arguments(parser):
       'scale them down. Default: {dpi}dpi.'.format(**DEFAULTS))
   parser.add_argument('--no-tight', action='store_true',
     help='Turn off tight_layout() (in case it\'s causing problems).')
-  parser.add_argument('-C', '--color',
+  parser.add_argument('-C', '--color', default='cornflowerblue',
     help='Color for the plot data elements. Can use any CSS color. Default: '
       '"%(default)s".')
-  parser.add_argument('-v', '--verbosity', type=int, nargs='?', const=1,
-    help='How much info to print to stderr. Give a number: 0 = silent, '
-      '1 = warnings only, 2 = warnings and informational messages. Default: '
-      '%(default)s.')
   parser.add_argument('-o', '--out-file', metavar='OUTPUT_FILE',
     help='Save the plot to this file instead of displaying it. The image '
       'format will be inferred from the file extension.')
+  parser.add_argument('-l', '--log', type=argparse.FileType('w'), default=sys.stderr,
+    help='Print log messages to this file instead of to stderr. Warning: Will overwrite the file.')
+  volume = parser.add_mutually_exclusive_group()
+  volume.add_argument('-q', '--quiet', dest='volume', action='store_const', const=logging.CRITICAL,
+    default=logging.WARNING)
+  volume.add_argument('-v', '--verbose', dest='volume', action='store_const', const=logging.INFO)
+  volume.add_argument('--debug', dest='volume', action='store_const', const=logging.DEBUG)
   return parser
 
 
