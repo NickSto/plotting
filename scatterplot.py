@@ -132,15 +132,10 @@ def get_time_unit(unit):
 
 def get_time_ticks(time_min, time_max, min_ticks=5, max_ticks=15):
   time_unit, multiple = get_tick_size(time_min, time_max, min_ticks, max_ticks)
-  # Python 2:
-  # min_dt = datetime.datetime.utcfromtimestamp(time_min)
   min_dt = datetime.datetime.fromtimestamp(time_min)
   dt = floor_datetime(min_dt, time_unit)
   first_tick_dt = increment_datetime(dt, time_unit)
   first_tick_value = int(first_tick_dt.timestamp())
-  # Python 2:
-  # epoch_start = datetime.datetime.utcfromtimestamp(0)
-  # first_tick_value = int((first_tick_dt - epoch_start).total_seconds())
   tick_values = []
   tick_labels = []
   tick_dt = first_tick_dt
@@ -251,7 +246,7 @@ class Second(TimeUnit):
   name = 'second'
   abbrev = 'sec'
   format = '%S'
-  format_rounded = '%Y-%m-%d %H:%M:%S'
+  format_rounded = '%Y-%m-%d\n%H:%M:%S'
   min_value = 0
   max_value = 59
   seconds = 1
@@ -260,7 +255,7 @@ class Minute(TimeUnit):
   name = 'minute'
   abbrev = 'min'
   format = '%M'
-  format_rounded = '%Y-%m-%d %H:%M'
+  format_rounded = '%Y-%m-%d\n%H:%M'
   min_value = 0
   max_value = 59
   seconds = Second.seconds * 60
@@ -269,7 +264,7 @@ class Hour(TimeUnit):
   name = 'hour'
   abbrev = 'hr'
   format = '%H'
-  format_rounded = '%Y-%m-%d %H:00'
+  format_rounded = '%Y-%m-%d\n%H:00'
   min_value = 0
   max_value = 23
   seconds = Minute.seconds * 60
@@ -296,7 +291,7 @@ class Month(TimeUnit):
   name = 'month'
   abbrev = 'mo'
   format = '%b'
-  format_rounded = '%b %Y'
+  format_rounded = '%b\n%Y'
   min_value = 1
   max_value = 12
   seconds = int(Day.seconds * 30.5)
