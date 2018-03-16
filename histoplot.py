@@ -14,12 +14,12 @@ DESCRIPTION = """Display a quick histogram of the input data, using matplotlib.
 """
 EPILOG = """Caution: It holds the entire dataset in memory, as a list."""
 
-def main():
 
+def make_parser():
   parser = argparse.ArgumentParser(usage=USAGE, description=DESCRIPTION,
     epilog=EPILOG)
   parser.set_defaults(**OPT_DEFAULTS)
-  parser.add_argument('file', nargs='?', metavar='file.txt',
+  parser.add_argument('input', nargs='?', type=argparse.FileType('r'), default=sys.stdin,
     help='Data file. If omitted, data will be read from stdin. Each line '
       'should contain one number.')
   parser.add_argument('-f', '--field', type=int, default=1,
@@ -39,14 +39,14 @@ def main():
     help='Range of the bins only. This will be used when calculating the size '
       'of the bins (unless -B is given), but it won\'t affect the scaling of '
       'the X axis. Give the lower bound, then the upper.')
+  return parser
 
+
+def main(argv):
+
+  parser = make_parser()
   matplotliblib.add_arguments(parser)
-  args = parser.parse_args()
-
-  if args.file:
-    input_stream = open(args.file, 'rU')
-  else:
-    input_stream = sys.stdin
+  args = parser.parse_args(argv[1:])
 
   if args.verbosity == 1:
     loglevel = logging.WARNING
@@ -66,7 +66,7 @@ def main():
   top = -sys.maxsize
   bottom = sys.maxsize
   line_num = 0
-  for line in input_stream:
+  for line in args.input:
     line_num+=1
     try:
       value = munger.get_field(line, field=args.field, tab=args.tab, cast=True,
@@ -84,8 +84,8 @@ def main():
       top = value
     data.append(value)
 
-  if input_stream is not sys.stdin:
-    input_stream.close()
+  if args.input is not sys.stdin:
+    args.input.close()
 
   if len(data) == 0:
     sys.exit(0)
@@ -132,5 +132,9 @@ def fail(message):
   sys.stderr.write(message+"\n")
   sys.exit(1)
 
-if __name__ == "__main__":
-  main()
+
+if __name__ == '__main__':
+  try:
+    sys.exit(main(sys.argv))
+  except BrokenPipeError:
+    pass

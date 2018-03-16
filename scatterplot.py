@@ -16,12 +16,12 @@ USAGE = """cat file.txt | %(prog)s [options]
 DESCRIPTION = """Display a quick scatterplot of the input data, using matplotlib."""
 EPILOG = """Caution: It holds the entire dataset in memory, as a list."""
 
-def main():
 
+def make_parser():
   parser = argparse.ArgumentParser(usage=USAGE, description=DESCRIPTION,
     epilog=EPILOG)
   parser.set_defaults(**OPT_DEFAULTS)
-  parser.add_argument('file', nargs='?', metavar='file.txt',
+  parser.add_argument('input', nargs='?', type=argparse.FileType('r'), default=sys.stdin,
     help='Data file. If omitted, data will be read from stdin. Each line '
       'should contain two numbers.')
   parser.add_argument('-x', '--x-field', type=int, default=1,
@@ -37,26 +37,27 @@ def main():
       'constant (1).')
   parser.add_argument('-t', '--tab', action='store_true',
     help='Split fields on single tabs instead of whitespace.')
-  parser.add_argument('-u', '--unix-time', choices=('X', 'Y', 'x', 'y'),
+  timedate = parser.add_argument_group('Time/date handling')
+  timedate.add_argument('-u', '--unix-time', choices=('X', 'Y', 'x', 'y'),
     help='Interpret the values for this axis as unix timestamps.')
-  parser.add_argument('--date', dest='time_disp', action='store_const', const='date', default='ago',
+  timedate.add_argument('--date', dest='time_disp', action='store_const', const='date', default='ago',
     help='Display the --unix-time field as the absolute date, not in units of how long ago.')
-  parser.add_argument('-U', '--time-unit', default='second', type=lambda s: datelib.UNIT_NAMES[s],
+  timedate.add_argument('-U', '--time-unit', default='second', type=lambda s: datelib.UNIT_NAMES[s],
     choices=sorted(datelib.UNIT_NAMES.keys()),
     help='The unit with which to display the time field. Default: %(default)s')
-  parser.add_argument('--date-ticks', type=int, default=10,
+  timedate.add_argument('--date-ticks', type=int, default=10,
     help='The maximum number of ticks to put on the time axis when using --date.')
+  return parser
 
+
+def main(argv):
+
+  parser = make_parser()
   matplotliblib.add_arguments(parser)
-  args = parser.parse_args()
+  args = parser.parse_args(argv[1:])
 
   if args.field and not args.y_range:
     args.y_range = (0, 2)
-
-  if args.file:
-    input_stream = open(args.file, 'rU')
-  else:
-    input_stream = sys.stdin
 
   if args.unix_time:
     now = int(time.time())
@@ -71,7 +72,7 @@ def main():
   x = []
   y = []
   line_num = 0
-  for line in input_stream:
+  for line in args.input:
     line_num+=1
     if args.field:
       xval = munger.get_field(line, field=args.field, tab=args.tab, cast=True,
@@ -90,8 +91,8 @@ def main():
     x.append(xval)
     y.append(yval)
 
-  if input_stream is not sys.stdin:
-    input_stream.close()
+  if args.input is not sys.stdin:
+    args.input.close()
 
   assert len(x) == len(y), 'Length of x and y lists is different.'
   if len(x) == 0 or len(y) == 0:
@@ -172,5 +173,8 @@ def fail(message):
   sys.exit(1)
 
 
-if __name__ == "__main__":
-  main()
+if __name__ == '__main__':
+  try:
+    sys.exit(main(sys.argv))
+  except BrokenPipeError:
+    pass
