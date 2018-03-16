@@ -72,16 +72,7 @@ def read_data(input, field, tab):
   line_num = 0
   for line in input:
     line_num+=1
-    try:
-      value = munger.get_field(line, field=field, tab=tab, cast=True,
-        errors='throw')
-    except IndexError as ie:
-      sys.stderr.write("Warning: "+str(ie)+'\n')
-      continue
-    except ValueError:
-      sys.stderr.write('Warning: Non-number encountered on line %d: %s\n' %
-        (line_num, line.rstrip('\r\n')))
-      continue
+    value = munger.get_field(line, field=field, tab=tab, cast=True, errors='warn')
     if value < bottom:
       bottom = value
     if value > top:
@@ -132,7 +123,7 @@ def make_plot(data, args, bins, bin_range):
 
 
 def fail(message):
-  sys.stderr.write(message+"\n")
+  logging.critical(message)
   sys.exit(1)
 
 

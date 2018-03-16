@@ -1,6 +1,7 @@
-#!/usr/bin/env python
-import sys
+#!/usr/bin/env python3
+import logging
 NON_NUMBERS = (float('inf'), float('nan'))
+
 
 def get_field(line, field=None, tab=False, cast=False, errors='silent'):
   """Return field given in "field", or the entire line if no field is given.
@@ -8,7 +9,7 @@ def get_field(line, field=None, tab=False, cast=False, errors='silent'):
   indicated by "errors". If it is "throw", an IndexError will be thrown. If it
   is "warn", it will print a warning to stderr. If it is "silent", do nothing.
   """
-  assert errors in ('silent', 'warn', 'throw'), '"errors" parameter invalid.'
+  assert errors in ('silent', 'warn', 'throw'), '"errors" parameter invalid ({!r}).'.format(errors)
   if field is None:
     return line
   # split into fields
@@ -40,7 +41,7 @@ def get_fields(line, fields=None, tab=False, cast=False, errors='silent'):
     line_fields = line.strip('\r\n').split()
   # try to pull out requested field
   output = [None] * len(fields)
-  for (i, field) in enumerate(fields):
+  for i, field in enumerate(fields):
     output[i] = deindex_or_error(line_fields, field-1, errors, line=line)
     # try to cast value, if requested
     if cast and output[i] is not None:
@@ -55,15 +56,13 @@ def deindex_or_error(values, index, errors, line=None):
   except IndexError:
     if errors == 'silent':
       return None
-    message = 'Not enough fields. Requested {}, line had {}.'.format(
-      index+1, len(values)
-    )
+    message = 'Not enough fields. Requested {}, line had {}.'.format(index+1, len(values))
     if line:
-      message += ' Line:\n'+line
+      message += ' Line:\n'+line[:80]
     if errors == 'throw':
       raise IndexError(message)
     elif errors == 'warn':
-      sys.stderr.write('Warning: '+message)
+      logging.warning('Warning: '+message)
 
 
 def cast_or_error(value, errors, line=None):
@@ -75,13 +74,13 @@ def cast_or_error(value, errors, line=None):
       return None
     message = 'Non-number "'+value+'" encountered'
     if line:
-      message += ' on line:\n'+line
+      message += ' on line:\n'+line[:80]
     else:
       message += '.'
     if errors == 'throw':
       raise ValueError(message)
     elif errors == 'warn':
-      sys.stderr.write('Warning: '+message)
+      logging.warning('Warning: '+message)
 
 
 def to_num(num_str):

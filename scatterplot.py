@@ -184,7 +184,7 @@ def get_tick_size(time_min, time_max, min_ticks, max_ticks):
 
 
 def fail(message):
-  sys.stderr.write(message+"\n")
+  logging.critical(message)
   sys.exit(1)
 
 
