@@ -49,15 +49,31 @@ def main(argv):
 
   logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')
 
+  data, top, bottom = read_data(args.input, args.field, args.tab)
+
+  if args.input is not sys.stdin:
+    args.input.close()
+
+  if len(data) == 0:
+    logging.info('No data.')
+    sys.exit(0)
+
+  bins, bin_range = get_edges(args.bins, args.bin_edges, args.bin_range, args.range, args.unity,
+                              top, bottom)
+
+  make_plot(data, args, bins, bin_range)
+
+
+def read_data(input, field, tab):
   # read data into list, parse types into ints or skipping if not possible
   data = []
   top = -sys.maxsize
   bottom = sys.maxsize
   line_num = 0
-  for line in args.input:
+  for line in input:
     line_num+=1
     try:
-      value = munger.get_field(line, field=args.field, tab=args.tab, cast=True,
+      value = munger.get_field(line, field=field, tab=tab, cast=True,
         errors='throw')
     except IndexError as ie:
       sys.stderr.write("Warning: "+str(ie)+'\n')
@@ -71,45 +87,44 @@ def main(argv):
     if value > top:
       top = value
     data.append(value)
+  return data, top, bottom
 
-  if args.input is not sys.stdin:
-    args.input.close()
 
-  if len(data) == 0:
-    sys.exit(0)
-
+def get_edges(bins_arg, bin_edges, bin_range_arg, range_arg, unity, top, bottom):
   # Compute plot settings from arguments
-  if args.bin_edges:
-    bins = args.bin_edges
-  elif args.bins:
-    bins = args.bins
+  if bin_edges:
+    bins = bin_edges
+  elif bins_arg:
+    bins = bins_arg
   else:
     bins = DEFAULT_BINS
-  if args.range:
-    bin_range = args.range
+  if range_arg:
+    bin_range = range_arg
   else:
-    bin_range = args.bin_range
-  if args.unity:
-    if args.bins:
-      if args.bin_range:
+    bin_range = bin_range_arg
+  if unity:
+    if bins_arg:
+      if bin_range_arg:
         fail('Error: Cannot meet constraints of --bins {}, --bin-range {} {}, and --unity.'
-             .format(args.bins, args.bin_range[0], args.bin_range[1]))
+             .format(bins_arg, bin_range_arg[0], bin_range_arg[1]))
       else:
-        bin_range = (bottom-0.5, bottom+args.bins+0.5)
+        bin_range = (bottom-0.5, bottom+bins_arg+0.5)
         print('Saw --bins {}, using --bins {} --bin-range {} {}.'
-              .format(args.bins, bins, bin_range[0], bin_range[1]))
+              .format(bins_arg, bins, bin_range[0], bin_range[1]))
     else:
-      if args.bin_range:
-        bins = args.bin_range[1] - args.bin_range[0] + 1
-        bin_range = (args.bin_range[0]-0.5, args.bin_range[1]+0.5)
+      if bin_range_arg:
+        bins = bin_range_arg[1] - bin_range_arg[0] + 1
+        bin_range = (bin_range_arg[0]-0.5, bin_range_arg[1]+0.5)
       else:
         bins = top - bottom + 1
         bin_range = (bottom-0.5, top+0.5)
         if bins > 200:
           fail('Error: Range of data is {}. Using that many bins will be hard to read. If you '
                'really want that many, please provide it explicitly to --bins.'.format(bins))
+  return bins, bin_range
 
 
+def make_plot(data, args, bins, bin_range):
   # make the actual plot
   pyplot = matplotliblib.preplot(**vars(args))
   pyplot.hist(data, bins=bins, range=bin_range, color=args.color)
