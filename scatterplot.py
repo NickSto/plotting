@@ -8,7 +8,7 @@ import datetime
 import matplotliblib
 import munger
 
-MIN_TICKS = 5
+MIN_TICKS = 4
 OPT_DEFAULTS = {'x_label':'X Value', 'y_label':'Y Value'}
 USAGE = """cat file.txt | %(prog)s [options]
        %(prog)s [options] file.txt"""
