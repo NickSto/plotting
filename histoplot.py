@@ -7,7 +7,7 @@ import matplotliblib
 import munger
 
 DEFAULT_BINS = 20
-OPT_DEFAULTS = {'field':1, 'x_label':'Value', 'y_label':'Frequency'}
+OPT_DEFAULTS = {'x_label':'Value', 'y_label':'Frequency'}
 USAGE = """cat file.txt | %(prog)s [options]
        %(prog)s [options] file.txt"""
 DESCRIPTION = """Display a quick histogram of the input data, using matplotlib.
@@ -22,7 +22,7 @@ def main():
   parser.add_argument('file', nargs='?', metavar='file.txt',
     help='Data file. If omitted, data will be read from stdin. Each line '
       'should contain one number.')
-  parser.add_argument('-f', '--field', type=int,
+  parser.add_argument('-f', '--field', type=int, default=1,
     help='Read this column from the input. Give a 1-based index. Columns are '
       'whitespace-delimited unless --tab is given. Default column: %(default)s.')
   parser.add_argument('-t', '--tab', action='store_true',

@@ -9,12 +9,10 @@ import matplotliblib
 import munger
 
 MIN_TICKS = 5
-OPT_DEFAULTS = {'x_field':1, 'y_field':2, 'x_label':'X Value', 'time_unit':'sec', 'time_disp':'ago',
-                'y_label':'Y Value', 'date_ticks':10, 'unix_time':False, 'color':'cornflowerblue'}
+OPT_DEFAULTS = {'x_label':'X Value', 'y_label':'Y Value'}
 USAGE = """cat file.txt | %(prog)s [options]
        %(prog)s [options] file.txt"""
-DESCRIPTION = """Display a quick histogram of the input data, using matplotlib.
-"""
+DESCRIPTION = """Display a quick scatterplot of the input data, using matplotlib."""
 EPILOG = """Caution: It holds the entire dataset in memory, as a list."""
 
 def main():
@@ -25,11 +23,11 @@ def main():
   parser.add_argument('file', nargs='?', metavar='file.txt',
     help='Data file. If omitted, data will be read from stdin. Each line '
       'should contain two numbers.')
-  parser.add_argument('-x', '--x-field', type=int,
+  parser.add_argument('-x', '--x-field', type=int, default=1,
     help='Use numbers from this input column as the x values. Give a 1-based '
       'index. Columns are whitespace-delimited unless --tab is given. '
       'Default column: %(default)s')
-  parser.add_argument('-y', '--y-field', type=int,
+  parser.add_argument('-y', '--y-field', type=int, default=2,
     help='Use numbers from this input column as the y values. Give a 1-based '
       'index. Columns are whitespace-delimited unless --tab is given. '
       'Default column: %(default)s')
@@ -40,13 +38,13 @@ def main():
     help='Split fields on single tabs instead of whitespace.')
   parser.add_argument('-u', '--unix-time', choices=('X', 'Y', 'x', 'y'),
     help='Interpret the values for this axis as unix timestamps.')
-  parser.add_argument('--date', dest='time_disp', action='store_const', const='date',
+  parser.add_argument('--date', dest='time_disp', action='store_const', const='date', default='ago',
     help='Display the --unix-time field as the absolute date, not in units of how long ago.')
-  parser.add_argument('-U', '--time-unit', choices=('sec', 'second', 'seconds',
-    'min', 'minute', 'minutes', 'hour', 'hours', 'hr', 'day', 'days', 'week',
-    'weeks', 'month', 'months', 'year', 'years'),
+  parser.add_argument('-U', '--time-unit', default='second',
+    choices=('sec', 'second', 'seconds', 'min', 'minute', 'minutes', 'hour', 'hours', 'hr', 'day',
+             'days', 'week', 'weeks', 'month', 'months', 'year', 'years'),
     help='The unit with which to display the time field. Default: %(default)s')
-  parser.add_argument('--date-ticks', type=int,
+  parser.add_argument('--date-ticks', type=int, default=10,
     help='The maximum number of ticks to put on the time axis when using --date.')
 
   matplotliblib.add_arguments(parser)
