@@ -114,11 +114,14 @@ def read_data(input, field, x_field, y_field, tab, time_field, time_disp, time_u
 def make_plot(x, y, args, time_field):
   axes = matplotliblib.preplot(**vars(args))
   axes.scatter(x, y, c=args.color)
-  set_ticks(axes, x, y, args.unix_time, args.time_disp, time_field, args.date_ticks)
+  params = get_tick_params(axes, x, y, args.unix_time, args.time_disp, time_field, args.date_ticks)
+  if params:
+    tick_values, tick_labels = get_time_ticks(*params)
+    matplotliblib.set_ticks(axes, tick_values, tick_labels, axis=time_field)
   matplotliblib.plot(axes, **vars(args))
 
 
-def set_ticks(axes, x, y, unix_time, time_disp, time_field, date_ticks):
+def get_tick_params(axes, x, y, unix_time, time_disp, time_field, date_ticks):
   if unix_time and time_disp == 'date':
     if time_field == 'x':
       time_max = max(x)
@@ -131,14 +134,9 @@ def set_ticks(axes, x, y, unix_time, time_disp, time_field, date_ticks):
       min_ticks = MIN_TICKS
     else:
       min_ticks = date_ticks - 1
-    tick_values, tick_labels = get_time_ticks(time_min, time_max,
-                                              min_ticks=min_ticks, max_ticks=max_ticks)
-    if time_field == 'x':
-      axes.set_xticks(tick_values)
-      axes.set_xticklabels(tick_labels)
-    elif time_field == 'y':
-      axes.set_yticks(tick_values, tick_labels)
-      axes.set_yticklabels(tick_labels)
+    return time_min, time_max, min_ticks, max_ticks
+  else:
+    return None
 
 
 def get_time_ticks(time_min, time_max, min_ticks=5, max_ticks=15):

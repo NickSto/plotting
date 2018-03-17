@@ -101,6 +101,15 @@ def scale(defaults=DEFAULTS, **args):
   return (dpi, figsize)
 
 
+def set_ticks(axes, tick_values, tick_labels, axis='x'):
+  if axis.lower() == 'x':
+    axes.set_xticks(tick_values)
+    axes.set_xticklabels(tick_labels)
+  elif axis.lower() == 'y':
+    axes.set_yticks(tick_values, tick_labels)
+    axes.set_yticklabels(tick_labels)
+
+
 def preplot(**args):
   """Set up the initial pyplot figure parameters, return an Axes object.
   Run this, get pyplot from it, and create your plot with it. E.g.:
