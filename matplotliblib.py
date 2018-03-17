@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import argparse
-from matplotlib import pyplot
+import matplotlib.pyplot
 import logging
 
 DEFAULTS = {'figsize':(8,6), 'dpi':80, 'width':640, 'height':480}
@@ -102,24 +102,30 @@ def scale(defaults=DEFAULTS, **args):
 
 
 def preplot(**args):
-  """Set up the initial pyplot figure parameters, return a pyplot object.
+  """Set up the initial pyplot figure parameters, return an Axes object.
   Run this, get pyplot from it, and create your plot with it. E.g.:
-    pyplot = matplotliblib.preplot(**vars(args))
-    pyplot.hist(data)
+    axes = matplotliblib.preplot(**vars(args))
+    axes.hist(data)
   Required keyword arguments: 'dpi', 'width', 'height'
   """
-  (dpi, figsize) = scale(**args)
+  dpi, figsize = scale(**args)
   logging.debug("dpi: {}, figsize: {}".format(dpi, figsize))
-  pyplot.figure(dpi=dpi, figsize=figsize)
-  return pyplot
+  # Note: We can avoid pyplot with matplotlib.figure.Figure() instead, but then we need to configure
+  # the backend manually. Example: https://matplotlib.org/gallery/api/agg_oo_sgskip.html
+  figure = matplotlib.pyplot.figure(dpi=dpi, figsize=figsize)
+  #TODO: Extra features:
+  # figure.suptitle('Super title for entire plot', fontsize=22)
+  # figure.set_figwidth(14)
+  axes = figure.add_subplot(1, 1, 1)
+  return axes
 
 
-def plot(pyplot, **args):
+def plot(axes, **args):
   """Add options to a plot, and either display it or save it.
-  Create your plot, then give the pyplot object to this function, e.g.:
-    pyplot.hist(data)
-    matplotliblib.plot(pyplot, **vars(args))
-  Required keyword arguments:
+  Create your plot, then give the Axes object to this function, e.g.:
+    axes.hist(data)
+    matplotliblib.plot(axes, **vars(args))
+  Required argparse arguments:
   'x_label', 'y_label', 'title', 'out_file'
   """
   required_opts = ('x_label', 'y_label', 'title', 'out_file')
@@ -133,20 +139,20 @@ def plot(pyplot, **args):
     args['x_range'] = args['range']
     args['y_range'] = args['range']
   if args.get('x_range') is not None:
-    pyplot.xlim(*args['x_range'])
+    axes.set_xlim(*args['x_range'])
   if args.get('y_range') is not None:
-    pyplot.ylim(*args['y_range'])
+    axes.set_ylim(*args['y_range'])
 
   # Apply rest of settings
-  pyplot.xlabel(args['x_label'])
-  pyplot.ylabel(args['y_label'])
+  axes.set_xlabel(args['x_label'])
+  axes.set_ylabel(args['y_label'])
   if args['title']:
-    pyplot.title(args['title'])
+    axes.set_title(args['title'])
   if not args.get('no_tight'):
-    pyplot.tight_layout()
+    matplotlib.pyplot.tight_layout()
   # Display or save
   if args['out_file']:
-    pyplot.savefig(args['out_file'])
+    matplotlib.pyplot.savefig(args['out_file'])
   else:
-    pyplot.show()
-  pyplot.close()
+    matplotlib.pyplot.show()
+  matplotlib.pyplot.close()

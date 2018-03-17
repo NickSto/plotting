@@ -112,13 +112,13 @@ def read_data(input, field, x_field, y_field, tab, time_field, time_disp, time_u
 
 
 def make_plot(x, y, args, time_field):
-  pyplot = matplotliblib.preplot(**vars(args))
-  pyplot.scatter(x, y, c=args.color)
-  set_ticks(pyplot, x, y, args.unix_time, args.time_disp, time_field, args.date_ticks)
-  matplotliblib.plot(pyplot, **vars(args))
+  axes = matplotliblib.preplot(**vars(args))
+  axes.scatter(x, y, c=args.color)
+  set_ticks(axes, x, y, args.unix_time, args.time_disp, time_field, args.date_ticks)
+  matplotliblib.plot(axes, **vars(args))
 
 
-def set_ticks(pyplot, x, y, unix_time, time_disp, time_field, date_ticks):
+def set_ticks(axes, x, y, unix_time, time_disp, time_field, date_ticks):
   if unix_time and time_disp == 'date':
     if time_field == 'x':
       time_max = max(x)
@@ -134,9 +134,11 @@ def set_ticks(pyplot, x, y, unix_time, time_disp, time_field, date_ticks):
     tick_values, tick_labels = get_time_ticks(time_min, time_max,
                                               min_ticks=min_ticks, max_ticks=max_ticks)
     if time_field == 'x':
-      pyplot.xticks(tick_values, tick_labels)
+      axes.set_xticks(tick_values)
+      axes.set_xticklabels(tick_labels)
     elif time_field == 'y':
-      pyplot.yticks(tick_values, tick_labels)
+      axes.set_yticks(tick_values, tick_labels)
+      axes.set_yticklabels(tick_labels)
 
 
 def get_time_ticks(time_min, time_max, min_ticks=5, max_ticks=15):

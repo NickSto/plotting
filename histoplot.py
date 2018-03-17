@@ -117,9 +117,9 @@ def get_edges(bins_arg, bin_edges, bin_range_arg, range_arg, unity, top, bottom)
 
 def make_plot(data, args, bins, bin_range):
   # make the actual plot
-  pyplot = matplotliblib.preplot(**vars(args))
-  pyplot.hist(data, bins=bins, range=bin_range, color=args.color)
-  matplotliblib.plot(pyplot, **vars(args))
+  axes = matplotliblib.preplot(**vars(args))
+  axes.hist(data, bins=bins, range=bin_range, color=args.color)
+  matplotliblib.plot(axes, **vars(args))
 
 
 def fail(message):
