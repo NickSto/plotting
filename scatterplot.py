@@ -45,7 +45,7 @@ def make_parser():
   timedate.add_argument('-U', '--time-unit', default='second', type=lambda s: datelib.UNIT_NAMES[s],
     choices=sorted(datelib.UNIT_NAMES.keys()),
     help='The unit with which to display the time field. Default: %(default)s')
-  timedate.add_argument('--date-ticks', type=int, default=10,
+  timedate.add_argument('--date-ticks', type=int, default=8,
     help='The maximum number of ticks to put on the time axis when using --date.')
   return parser
 
