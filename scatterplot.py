@@ -37,16 +37,26 @@ def make_parser():
       'constant (1).')
   parser.add_argument('-t', '--tab', action='store_true',
     help='Split fields on single tabs instead of whitespace.')
+  parser.add_argument('--head', type=int,
+    help='Only plot the first X data points in the input file.')
+  parser.add_argument('--tail', type=int,
+    help='Only plot the last X data points in the input file.')
   timedate = parser.add_argument_group('Time/date handling')
   timedate.add_argument('-u', '--unix-time', choices=('X', 'Y', 'x', 'y'),
     help='Interpret the values for this axis as unix timestamps.')
   timedate.add_argument('--date', dest='time_disp', action='store_const', const='date', default='ago',
     help='Display the --unix-time field as the absolute date, not in units of how long ago.')
   timedate.add_argument('-U', '--time-unit', default='second', type=lambda s: datelib.UNIT_NAMES[s],
-    choices=sorted(datelib.UNIT_NAMES.keys()),
-    help='The unit with which to display the time field. Default: %(default)s')
+    choices=datelib.TIME_UNITS,
+    help='The unit with which to display the time field. Choose one of: {}. Default: %(default)s'
+         .format(', '.join(sorted(datelib.UNIT_NAMES.keys()))))
   timedate.add_argument('--date-ticks', type=int, default=8,
     help='The maximum number of ticks to put on the time axis when using --date.')
+  timedate.add_argument('-s', '--start',
+    help='Only plot points at or after this time. Give a unix timestamp or a quantity like "10s", '
+         '"25 minutes", "10yr", etc., to specify an amount of time in the past.')
+  timedate.add_argument('-e', '--end',
+    help='Only plot points at or before this time. Same format as --start.')
   return parser
 
 
@@ -60,6 +70,11 @@ def main(argv):
 
   if args.field and not args.y_range:
     args.y_range = (0, 2)
+  if (args.start or args.end) and not args.unix_time:
+    fail('Error: --start and --end are invalid without --unix-time.')
+
+  start = get_start_or_end(args.start)
+  end = get_start_or_end(args.end)
 
   if args.unix_time:
     if args.x_label == OPT_DEFAULTS['x_label']:
@@ -72,7 +87,10 @@ def main(argv):
     time_field = None
 
   x, y = read_data(args.input, args.field, args.x_field, args.y_field, args.tab,
-                   time_field, args.time_disp, args.time_unit)
+                   time_field, args.time_disp, args.time_unit, args.head, start, end)
+  if args.tail is not None:
+    x = x[-args.tail:]
+    y = y[-args.tail:]
 
   if args.input is not sys.stdin:
     args.input.close()
@@ -85,7 +103,8 @@ def main(argv):
   make_plot(x, y, args, time_field)
 
 
-def read_data(input, field, x_field, y_field, tab, time_field, time_disp, time_unit):
+def read_data(input, field, x_field, y_field, tab, time_field, time_disp, time_unit, head,
+              start, end):
   # read data into lists, parse types into ints or skipping if not possible
   now = int(time.time())
   x = []
@@ -101,11 +120,23 @@ def read_data(input, field, x_field, y_field, tab, time_field, time_disp, time_u
                                      tab=tab, cast=True, errors='warn')
     if xval is None or yval is None:
       continue
-    if time_disp == 'ago':
+    if head is not None and line_num > head:
+      break
+    # Timestamp stuff.
+    if time_field:
       if time_field == 'x':
-        xval = (xval - now) / time_unit.seconds
+        timestamp = xval
       elif time_field == 'y':
-        yval = (yval - now) / time_unit.seconds
+        timestamp = yval
+      if start is not None and timestamp < start:
+        continue
+      elif end is not None and timestamp > end:
+        continue
+      if time_disp == 'ago':
+        if time_field == 'x':
+          xval = (xval - now) / time_unit.seconds
+        elif time_field == 'y':
+          yval = (yval - now) / time_unit.seconds
     x.append(xval)
     y.append(yval)
   return x, y
@@ -119,6 +150,18 @@ def make_plot(x, y, args, time_field):
     tick_values, tick_labels = get_time_ticks(*params)
     matplotliblib.set_ticks(axes, tick_values, tick_labels, axis=time_field)
   matplotliblib.plot(axes, **vars(args))
+
+
+def get_start_or_end(time_str):
+  try:
+    return int(time_str)
+  except TypeError:
+    return None
+  except ValueError:
+    pass
+  now = int(time.time())
+  seconds_ago = datelib.time_str_to_seconds(time_str)
+  return now - seconds_ago
 
 
 def get_tick_params(axes, x, y, unix_time, time_disp, time_field, date_ticks):
