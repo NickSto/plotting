@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
-import sys
 import argparse
-import matplotlib.pyplot
 import logging
+import os
+import sys
+import matplotlib
+
+# Prevent script from failing on headless machines with no X session:
+# https://stackoverflow.com/questions/4706451/how-to-save-a-figure-remotely-with-pylab/4706614#4706614
+if not os.getenv('DISPLAY'):
+  matplotlib.use('Agg')
+
+import matplotlib.pyplot
 
 DEFAULTS = {'figsize':(8,6), 'dpi':80, 'width':640, 'height':480}
 
