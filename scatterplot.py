@@ -37,22 +37,23 @@ def make_parser():
          'constant (1).')
   parser.add_argument('-t', '--tab', action='store_true',
     help='Split fields on single tabs instead of whitespace.')
-  parser.add_argument('-g', '--tag-field', type=int,
-    help='The input contains multiple data series, distinguished by this column. '
-         'This column should identify which series the data point belongs to. It can be any '
-         'string, as long as it uniquely identifies the series. '
-         'This option will produce a single plot, with each series as its own line.')
-  parser.add_argument('-l', '--label-field', type=int,
-    help='When doing a multiplot using --tag-field, use this field for the name to use in the '
-         'legend. This is useful when the unique identifier isn\'t a human-readable name.')
   parser.add_argument('--head', type=int,
     help='Only plot the first X data points in the input file.')
   parser.add_argument('--tail', type=int,
     help='Only plot the last X data points in the input file.')
-  parser.add_argument('-c', '--changing-only', action='store_true',
+  multi = parser.add_argument_group('Multiple data series')
+  multi.add_argument('-g', '--tag-field', type=int,
+    help='The input contains multiple data series, distinguished by this column. '
+         'This column should identify which series the data point belongs to. It can be any '
+         'string, as long as it uniquely identifies the series. '
+         'This option will produce a single plot, with each series as its own line.')
+  multi.add_argument('-l', '--label-field', type=int,
+    help='When doing a multiplot using --tag-field, use this field for the name to use in the '
+         'legend. This is useful when the unique identifier isn\'t a human-readable name.')
+  multi.add_argument('-c', '--changing-only', action='store_true',
     help='When plotting multiple data series (with --tag-field), omit any series where the '
          'Y values don\'t change.')
-  parser.add_argument('-n', '--normalize', action='store_true',
+  multi.add_argument('-n', '--normalize', action='store_true',
     help='When plotting multiple data series (with --tag-field), normalize their values so that '
          'their minimums are 0 and their maximums are 1.')
   timedate = parser.add_argument_group('Time/date handling')
@@ -93,6 +94,7 @@ def main(argv):
   start = get_start_or_end(args.start)
   end = get_start_or_end(args.end)
 
+  # Figure out some time parameters.
   if args.unix_time:
     if args.x_label == OPT_DEFAULTS['x_label']:
       if args.time_disp == 'ago':
@@ -103,17 +105,19 @@ def main(argv):
   else:
     time_field = None
 
+  # Read the data in.
   fields = {'1':args.field, 'x':args.x_field, 'y':args.y_field, 'tag':args.tag_field,
             'label':args.label_field, 'time':time_field}
-  x, y, labels = read_data(args.input, fields, args.tab,
-                           args.time_disp, args.time_unit, args.head, start, end)
+  x, y, labels = read_data(args.input, fields, args.tab, args.time_disp, args.time_unit, args.head,
+                           start, end)
+  if args.input is not sys.stdin:
+    args.input.close()
+
   if args.tail is not None:
     x = x[-args.tail:]
     y = y[-args.tail:]
 
-  if args.input is not sys.stdin:
-    args.input.close()
-
+  # Postprocess some of the data for multiplots.
   if args.tag_field:
     if args.changing_only:
       trim_static_series(x, y)
@@ -136,6 +140,7 @@ def main(argv):
     logging.info('No data found.')
     return 0
 
+  # Create the Axes object.
   axes = matplotliblib.preplot(**vars(args))
 
   # Plot the data.
@@ -155,10 +160,12 @@ def main(argv):
       labels_list = tags
     axes.legend(handles=handles, labels=labels_list)
 
+  # Label time axis.
   if args.unix_time and args.time_disp == 'date':
     multiplot = args.tag_field is not None
     set_time_ticks(axes, x, y, multiplot, args.unix_time, args.time_disp, time_field, args.date_ticks)
 
+  # Do final adjustments and show the plot.
   matplotliblib.plot(axes, **vars(args))
 
 
