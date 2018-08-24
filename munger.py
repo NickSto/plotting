@@ -25,7 +25,7 @@ def get_field(line, field=None, tab=False, cast=False, errors='silent'):
   return value
 
 
-def get_fields(line, fields=None, tab=False, cast=False, errors='silent'):
+def get_fields(line, fields=None, tab=False, casts=None, errors='silent'):
   """Return fields given in "fields", or the entire line if no fields are given.
   If "fields" is out of range for the line, return None, and take the action
   indicated by "errors". If it is "throw", an IndexError will be thrown. If it
@@ -34,6 +34,9 @@ def get_fields(line, fields=None, tab=False, cast=False, errors='silent'):
   assert errors in ('silent', 'warn', 'throw'), '"errors" parameter invalid.'
   if fields is None:
     return line
+  # Don't cast by default.
+  if casts is None:
+    casts = [False] * len(fields)
   # split into fields
   if tab:
     line_fields = line.strip('\r\n').split('\t')
@@ -41,8 +44,11 @@ def get_fields(line, fields=None, tab=False, cast=False, errors='silent'):
     line_fields = line.strip('\r\n').split()
   # try to pull out requested field
   output = [None] * len(fields)
-  for i, field in enumerate(fields):
-    output[i] = deindex_or_error(line_fields, field-1, errors, line=line)
+  for i, (field, cast) in enumerate(zip(fields, casts)):
+    if field is None:
+      output[i] = None
+    else:
+      output[i] = deindex_or_error(line_fields, field-1, errors, line=line)
     # try to cast value, if requested
     if cast and output[i] is not None:
       output[i] = cast_or_error(output[i], errors, line=line)

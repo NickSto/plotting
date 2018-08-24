@@ -32,6 +32,11 @@ def make_parser():
     help='Use numbers from this input column as the y values. Give a 1-based '
       'index. Columns are whitespace-delimited unless --tab is given. '
       'Default column: %(default)s')
+  parser.add_argument('-l', '--tag-field', type=int,
+    help='The input contains multiple data series, distinguished by this column. '
+         'This column should identify which series the data point belongs to. It can be any '
+         'string, as long as it uniquely identifies the series. '
+         'This option will produce a single plot, with each series as its own line.')
   parser.add_argument('-f', '--field', type=int,
     help='1-dimensional data. Use this column as x values and set y as a '
       'constant (1).')
@@ -41,6 +46,13 @@ def make_parser():
     help='Only plot the first X data points in the input file.')
   parser.add_argument('--tail', type=int,
     help='Only plot the last X data points in the input file.')
+  #TODO:
+  # parser.add_argument('-n', '--normalize', action='store_true',
+  #   help='When plotting multiple data series (with --tag-field), normalize their values so that '
+  #        'their minimums are 0 and their maximums are 1.')
+  # parser.add_argument('-c', '--changing-only', action='store_true',
+  #   help='When plotting multiple data series (with --tag-field), omit any series where the '
+  #        'Y values don\'t change.')
   timedate = parser.add_argument_group('Time/date handling')
   timedate.add_argument('-u', '--unix-time', choices=('X', 'Y', 'x', 'y'),
     help='Interpret the values for this axis as unix timestamps.')
@@ -68,6 +80,9 @@ def main(argv):
 
   logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')
 
+  if args.tag_field is not None and args.tail is not None:
+    fail('Error: --tail is not yet supported at the same time as --tag-field.')
+
   if args.field and not args.y_range:
     args.y_range = (0, 2)
   if (args.start or args.end) and not args.unix_time:
@@ -86,7 +101,7 @@ def main(argv):
   else:
     time_field = None
 
-  x, y = read_data(args.input, args.field, args.x_field, args.y_field, args.tab,
+  x, y = read_data(args.input, args.field, args.x_field, args.y_field, args.tag_field, args.tab,
                    time_field, args.time_disp, args.time_unit, args.head, start, end)
   if args.tail is not None:
     x = x[-args.tail:]
@@ -95,18 +110,45 @@ def main(argv):
   if args.input is not sys.stdin:
     args.input.close()
 
-  assert len(x) == len(y), 'Length of x and y lists is different ({} != {}).'.format(len(x), len(y))
-  if len(x) == 0 or len(y) == 0:
+  # Do some checking of the data.
+  if args.tag_field:
+    empty = True
+    for tag in x:
+      if len(x[tag]) != len(y[tag]):
+        fail('Length of x and y lists for series {!r} is different ({} != {}).'
+             .format(tag, len(x[tag]), len(y[tag])))
+      if len(x[tag]) > 0:
+        empty = False
+  else:
+    assert len(x) == len(y), 'Length of x and y lists is different ({} != {}).'.format(len(x), len(y))
+    empty = len(x) == 0
+  if empty:
     logging.info('No data found.')
-    sys.exit(0)
+    return 0
 
-  make_plot(x, y, args, time_field)
+  axes = matplotliblib.preplot(**vars(args))
+
+  if args.tag_field is None:
+    axes.scatter(x, y, c=args.color)
+  else:
+    for tag in x:
+      x_series = x[tag]
+      y_series = y[tag]
+      axes.plot(x_series, y_series)
+
+  if args.unix_time and args.time_disp == 'date':
+    multiplot = args.tag_field is not None
+    set_time_ticks(axes, x, y, multiplot, args.unix_time, args.time_disp, time_field, args.date_ticks)
+
+  matplotliblib.plot(axes, **vars(args))
 
 
-def read_data(input, field, x_field, y_field, tab, time_field, time_disp, time_unit, head,
-              start, end):
+def read_data(input, field, x_field, y_field, tag_field, tab, time_field, time_disp, time_unit,
+              head, start, end):
   # read data into lists, parse types into ints or skipping if not possible
   now = int(time.time())
+  x_serieses = {}
+  y_serieses = {}
   x = []
   y = []
   line_num = 0
@@ -116,8 +158,8 @@ def read_data(input, field, x_field, y_field, tab, time_field, time_disp, time_u
       xval = munger.get_field(line, field=field, tab=tab, cast=True, errors='warn')
       yval = 1
     else:
-      xval, yval = munger.get_fields(line, fields=(x_field, y_field),
-                                     tab=tab, cast=True, errors='warn')
+      xval, yval, tag = munger.get_fields(line, fields=(x_field, y_field, tag_field),
+                                          tab=tab, casts=(True, True, False), errors='warn')
     if xval is None or yval is None:
       continue
     if head is not None and line_num > head:
@@ -137,19 +179,26 @@ def read_data(input, field, x_field, y_field, tab, time_field, time_disp, time_u
           xval = (xval - now) / time_unit.seconds
         elif time_field == 'y':
           yval = (yval - now) / time_unit.seconds
-    x.append(xval)
-    y.append(yval)
-  return x, y
+    if tag_field is None:
+      x.append(xval)
+      y.append(yval)
+    else:
+      # Multiple data series stuff.
+      if tag not in x_serieses:
+        x_serieses[tag] = []
+        y_serieses[tag] = []
+      x_serieses[tag].append(xval)
+      y_serieses[tag].append(yval)
+  if tag_field is None:
+    return x, y
+  else:
+    return x_serieses, y_serieses
 
 
-def make_plot(x, y, args, time_field):
-  axes = matplotliblib.preplot(**vars(args))
-  axes.scatter(x, y, c=args.color)
-  params = get_tick_params(axes, x, y, args.unix_time, args.time_disp, time_field, args.date_ticks)
-  if params:
-    tick_values, tick_labels = get_time_ticks(*params)
-    matplotliblib.set_ticks(axes, tick_values, tick_labels, axis=time_field)
-  matplotliblib.plot(axes, **vars(args))
+def set_time_ticks(axes, x, y, multiplot, unix_time, time_disp, time_field, date_ticks):
+  params = get_tick_params(x, y, multiplot, unix_time, time_disp, time_field, date_ticks)
+  tick_values, tick_labels = get_time_ticks(*params)
+  matplotliblib.set_ticks(axes, tick_values, tick_labels, axis=time_field)
 
 
 def get_start_or_end(time_str):
@@ -164,22 +213,36 @@ def get_start_or_end(time_str):
   return now - seconds_ago
 
 
-def get_tick_params(axes, x, y, unix_time, time_disp, time_field, date_ticks):
-  if unix_time and time_disp == 'date':
-    if time_field == 'x':
-      time_max = max(x)
-      time_min = min(x)
-    elif time_field == 'y':
-      time_max = max(y)
-      time_min = min(y)
-    max_ticks = date_ticks
-    if max_ticks > MIN_TICKS:
-      min_ticks = MIN_TICKS
-    else:
-      min_ticks = date_ticks - 1
-    return time_min, time_max, min_ticks, max_ticks
+def get_tick_params(x, y, multiplot, unix_time, time_disp, time_field, date_ticks):
+  if time_field == 'x':
+    time_min, time_max = get_min_max(x, multiplot)
+  elif time_field == 'y':
+    time_min, time_max = get_min_max(y, multiplot)
+  max_ticks = date_ticks
+  if max_ticks > MIN_TICKS:
+    min_ticks = MIN_TICKS
   else:
-    return None
+    min_ticks = date_ticks - 1
+  return time_min, time_max, min_ticks, max_ticks
+
+
+def get_min_max(data, multiplot):
+  min_val = None
+  max_val = None
+  if multiplot:
+    for series in data.values():
+      series_min = min(series)
+      series_max = max(series)
+      if min_val is None:
+        min_val = series_min
+        max_val = series_max
+      else:
+        min_val = min(min_val, series_min)
+        max_val = max(max_val, series_max)
+  else:
+    min_val = min(data)
+    max_val = max(data)
+  return min_val, max_val
 
 
 def get_time_ticks(time_min, time_max, min_ticks=5, max_ticks=15):

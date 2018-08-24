@@ -48,7 +48,7 @@ def add_arguments(parser):
   parser.add_argument('-o', '--out-file', metavar='OUTPUT_FILE',
     help='Save the plot to this file instead of displaying it. The image '
       'format will be inferred from the file extension.')
-  parser.add_argument('-l', '--log', type=argparse.FileType('w'), default=sys.stderr,
+  parser.add_argument('-L', '--log', type=argparse.FileType('w'), default=sys.stderr,
     help='Print log messages to this file instead of to stderr. Warning: Will overwrite the file.')
   volume = parser.add_mutually_exclusive_group()
   volume.add_argument('-q', '--quiet', dest='volume', action='store_const', const=logging.CRITICAL,
