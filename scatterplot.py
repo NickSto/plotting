@@ -32,27 +32,29 @@ def make_parser():
     help='Use numbers from this input column as the y values. Give a 1-based '
       'index. Columns are whitespace-delimited unless --tab is given. '
       'Default column: %(default)s')
-  parser.add_argument('-l', '--tag-field', type=int,
+  parser.add_argument('-f', '--field', type=int,
+    help='1-dimensional data. Use this column as x values and set y as a '
+         'constant (1).')
+  parser.add_argument('-t', '--tab', action='store_true',
+    help='Split fields on single tabs instead of whitespace.')
+  parser.add_argument('-g', '--tag-field', type=int,
     help='The input contains multiple data series, distinguished by this column. '
          'This column should identify which series the data point belongs to. It can be any '
          'string, as long as it uniquely identifies the series. '
          'This option will produce a single plot, with each series as its own line.')
-  parser.add_argument('-f', '--field', type=int,
-    help='1-dimensional data. Use this column as x values and set y as a '
-      'constant (1).')
-  parser.add_argument('-t', '--tab', action='store_true',
-    help='Split fields on single tabs instead of whitespace.')
+  parser.add_argument('-l', '--label-field', type=int,
+    help='When doing a multiplot using --tag-field, use this field for the name to use in the '
+         'legend. This is useful when the unique identifier isn\'t a human-readable name.')
   parser.add_argument('--head', type=int,
     help='Only plot the first X data points in the input file.')
   parser.add_argument('--tail', type=int,
     help='Only plot the last X data points in the input file.')
-  #TODO:
-  # parser.add_argument('-n', '--normalize', action='store_true',
-  #   help='When plotting multiple data series (with --tag-field), normalize their values so that '
-  #        'their minimums are 0 and their maximums are 1.')
-  # parser.add_argument('-c', '--changing-only', action='store_true',
-  #   help='When plotting multiple data series (with --tag-field), omit any series where the '
-  #        'Y values don\'t change.')
+  parser.add_argument('-c', '--changing-only', action='store_true',
+    help='When plotting multiple data series (with --tag-field), omit any series where the '
+         'Y values don\'t change.')
+  parser.add_argument('-n', '--normalize', action='store_true',
+    help='When plotting multiple data series (with --tag-field), normalize their values so that '
+         'their minimums are 0 and their maximums are 1.')
   timedate = parser.add_argument_group('Time/date handling')
   timedate.add_argument('-u', '--unix-time', choices=('X', 'Y', 'x', 'y'),
     help='Interpret the values for this axis as unix timestamps.')
@@ -101,14 +103,22 @@ def main(argv):
   else:
     time_field = None
 
-  x, y = read_data(args.input, args.field, args.x_field, args.y_field, args.tag_field, args.tab,
-                   time_field, args.time_disp, args.time_unit, args.head, start, end)
+  fields = {'1':args.field, 'x':args.x_field, 'y':args.y_field, 'tag':args.tag_field,
+            'label':args.label_field, 'time':time_field}
+  x, y, labels = read_data(args.input, fields, args.tab,
+                           args.time_disp, args.time_unit, args.head, start, end)
   if args.tail is not None:
     x = x[-args.tail:]
     y = y[-args.tail:]
 
   if args.input is not sys.stdin:
     args.input.close()
+
+  if args.tag_field:
+    if args.changing_only:
+      trim_static_series(x, y)
+    if args.normalize:
+      normalize(x, y)
 
   # Do some checking of the data.
   if args.tag_field:
@@ -128,13 +138,22 @@ def main(argv):
 
   axes = matplotliblib.preplot(**vars(args))
 
+  # Plot the data.
   if args.tag_field is None:
     axes.scatter(x, y, c=args.color)
   else:
-    for tag in x:
+    handles = []
+    tags = list(x.keys())
+    for tag in tags:
       x_series = x[tag]
       y_series = y[tag]
-      axes.plot(x_series, y_series)
+      retval = axes.plot(x_series, y_series)
+      handles.append(retval[0])
+    if args.label_field:
+      labels_list = [labels[tag] for tag in tags]
+    else:
+      labels_list = tags
+    axes.legend(handles=handles, labels=labels_list)
 
   if args.unix_time and args.time_disp == 'date':
     multiplot = args.tag_field is not None
@@ -143,9 +162,12 @@ def main(argv):
   matplotliblib.plot(axes, **vars(args))
 
 
-def read_data(input, field, x_field, y_field, tag_field, tab, time_field, time_disp, time_unit,
-              head, start, end):
+def read_data(input, fields, tab, time_disp, time_unit, head, start, end):
   # read data into lists, parse types into ints or skipping if not possible
+  if fields['1'] is None:
+    field_columns = (fields['x'], fields['y'], fields['tag'], fields['label'])
+    casts = (True, True, False, False)
+  labels = {}
   now = int(time.time())
   x_serieses = {}
   y_serieses = {}
@@ -154,32 +176,32 @@ def read_data(input, field, x_field, y_field, tag_field, tab, time_field, time_d
   line_num = 0
   for line in input:
     line_num+=1
-    if field:
-      xval = munger.get_field(line, field=field, tab=tab, cast=True, errors='warn')
+    if fields['1'] is not None:
+      xval = munger.get_field(line, field=fields['1'], tab=tab, cast=True, errors='warn')
       yval = 1
     else:
-      xval, yval, tag = munger.get_fields(line, fields=(x_field, y_field, tag_field),
-                                          tab=tab, casts=(True, True, False), errors='warn')
+      xval, yval, tag, label = munger.get_fields(line, fields=field_columns, tab=tab, casts=casts,
+                                          errors='warn')
     if xval is None or yval is None:
       continue
     if head is not None and line_num > head:
       break
     # Timestamp stuff.
-    if time_field:
-      if time_field == 'x':
+    if fields['time']:
+      if fields['time'] == 'x':
         timestamp = xval
-      elif time_field == 'y':
+      elif fields['time'] == 'y':
         timestamp = yval
       if start is not None and timestamp < start:
         continue
       elif end is not None and timestamp > end:
         continue
       if time_disp == 'ago':
-        if time_field == 'x':
+        if fields['time'] == 'x':
           xval = (xval - now) / time_unit.seconds
-        elif time_field == 'y':
+        elif fields['time'] == 'y':
           yval = (yval - now) / time_unit.seconds
-    if tag_field is None:
+    if fields['tag'] is None:
       x.append(xval)
       y.append(yval)
     else:
@@ -187,12 +209,40 @@ def read_data(input, field, x_field, y_field, tag_field, tab, time_field, time_d
       if tag not in x_serieses:
         x_serieses[tag] = []
         y_serieses[tag] = []
+        labels[tag] = label
       x_serieses[tag].append(xval)
       y_serieses[tag].append(yval)
-  if tag_field is None:
-    return x, y
+  if fields['tag'] is None:
+    return x, y, None
   else:
-    return x_serieses, y_serieses
+    return x_serieses, y_serieses, labels
+
+
+def trim_static_series(x_serieses, y_serieses):
+  tags = list(y_serieses.keys())
+  for tag in tags:
+    changed = False
+    y_series = y_serieses[tag]
+    first = y_series[0]
+    for val in y_series:
+      if val != first:
+        changed = True
+        break
+    if not changed:
+      logging.info('No variation in series {!r}. Skipping..'.format(tag))
+      del x_serieses[tag]
+      del y_serieses[tag]
+
+
+def normalize(x_serieses, y_serieses):
+  y_serieses_new = {}
+  for tag, y_series in y_serieses.items():
+    ymin = min(y_series)
+    ymax = max(y_series)
+    range = ymax-ymin
+    for i, yval in enumerate(y_series):
+      #TODO: Check this is valid for negative values.
+      y_series[i] = (yval-ymin)/range
 
 
 def set_time_ticks(axes, x, y, multiplot, unix_time, time_disp, time_field, date_ticks):
