@@ -250,12 +250,15 @@ def trim_static_series(x_serieses, y_serieses):
 def normalize(x_serieses, y_serieses):
   y_serieses_new = {}
   for tag, y_series in y_serieses.items():
-    ymin = min(y_series)
     ymax = max(y_series)
-    range = ymax-ymin
+    ymin = min(y_series)
+    # Divide all values by the one furthest from 0.
+    factor = max(ymax, abs(ymin))
+    if factor == 0:
+      # If all the values are 0, just leave them as 0's.
+      factor = 1
     for i, yval in enumerate(y_series):
-      #TODO: Check this is valid for negative values.
-      y_series[i] = (yval-ymin)/range
+      y_series[i] = yval/factor
 
 
 def set_time_ticks(axes, x, y, multiplot, unix_time, time_disp, time_field, date_ticks):
