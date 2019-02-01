@@ -54,8 +54,10 @@ def make_parser():
     help='When plotting multiple data series (with --tag-field), omit any series where the '
          'Y values don\'t change.')
   multi.add_argument('-n', '--normalize', action='store_true',
-    help='When plotting multiple data series (with --tag-field), normalize their values so that '
-         'their minimums are 0 and their maximums are 1.')
+    help='When plotting multiple data series (with --tag-field), normalize each series so that '
+         'the maximum is 1 (or the minimum is -1, if its absolute value is greater).')
+  multi.add_argument('--line', action='store_true',
+    help='Do a line plot instead of a scatter plot.')
   timedate = parser.add_argument_group('Time/date handling')
   timedate.add_argument('-u', '--unix-time', choices=('X', 'Y', 'x', 'y'),
     help='Interpret the values for this axis as unix timestamps.')
@@ -152,8 +154,12 @@ def main(argv):
     for tag in tags:
       x_series = x[tag]
       y_series = y[tag]
-      retval = axes.plot(x_series, y_series)
-      handles.append(retval[0])
+      if args.line:
+        retval = axes.plot(x_series, y_series)
+        handles.append(retval[0])
+      else:
+        retval = axes.scatter(x_series, y_series)
+        handles.append(retval)
     if args.label_field:
       labels_list = [labels[tag] for tag in tags]
     else:
