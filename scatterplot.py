@@ -21,26 +21,29 @@ def make_parser():
   parser = argparse.ArgumentParser(usage=USAGE, description=DESCRIPTION,
     epilog=EPILOG)
   parser.set_defaults(**OPT_DEFAULTS)
-  parser.add_argument('input', nargs='?', type=argparse.FileType('r'), default=sys.stdin,
+  input = parser.add_argument_group('Input data')
+  input.add_argument('input', nargs='?', type=argparse.FileType('r'), default=sys.stdin,
     help='Data file. If omitted, data will be read from stdin. Each line '
       'should contain two numbers.')
-  parser.add_argument('-x', '--x-field', type=int, default=1,
+  input.add_argument('-x', '--x-field', type=int, default=1,
     help='Use numbers from this input column as the x values. Give a 1-based '
       'index. Columns are whitespace-delimited unless --tab is given. '
       'Default column: %(default)s')
-  parser.add_argument('-y', '--y-field', type=int, default=2,
+  input.add_argument('-y', '--y-field', type=int, default=2,
     help='Use numbers from this input column as the y values. Give a 1-based '
       'index. Columns are whitespace-delimited unless --tab is given. '
       'Default column: %(default)s')
-  parser.add_argument('-f', '--field', type=int,
+  input.add_argument('-f', '--field', type=int,
     help='1-dimensional data. Use this column as x values and set y as a '
          'constant (1).')
-  parser.add_argument('-t', '--tab', action='store_true',
+  input.add_argument('-t', '--tab', action='store_true',
     help='Split fields on single tabs instead of whitespace.')
-  parser.add_argument('--head', type=int,
+  input.add_argument('--head', type=int,
     help='Only plot the first X data points in the input file.')
-  parser.add_argument('--tail', type=int,
+  input.add_argument('--tail', type=int,
     help='Only plot the last X data points in the input file.')
+  parser.add_argument('-S', '--point-size', type=int, default=30,
+    help='Size of the data points in the plot. Default: %(default)s')
   multi = parser.add_argument_group('Multiple data series')
   multi.add_argument('-g', '--tag-field', type=int,
     help='The input contains multiple data series, distinguished by this column. '
@@ -147,7 +150,7 @@ def main(argv):
 
   # Plot the data.
   if args.tag_field is None:
-    axes.scatter(x, y, c=args.color)
+    axes.scatter(x, y, c=args.color, s=args.point_size)
   else:
     handles = []
     tags = list(x.keys())
@@ -158,7 +161,7 @@ def main(argv):
         retval = axes.plot(x_series, y_series)
         handles.append(retval[0])
       else:
-        retval = axes.scatter(x_series, y_series)
+        retval = axes.scatter(x_series, y_series, s=args.point_size)
         handles.append(retval)
     if args.label_field:
       labels_list = [labels[tag] for tag in tags]
