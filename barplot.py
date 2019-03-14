@@ -1,11 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # a stacked bar plot with errorbars
 from __future__ import division
 import sys
 import numpy
 import argparse
 import collections
-from matplotlib import pyplot
 import matplotliblib
 import munger
 
@@ -39,7 +38,9 @@ def main(argv):
     'wil be the full width of its interval, with no spacing between bars. '
     'Default: %(default)s.')
 
-  matplotliblib.add_arguments(parser)
+  plotter = matplotliblib.PlotHelper()
+
+  plotter.add_arguments(parser)
   args = parser.parse_args(argv[1:])
 
   if args.file:
@@ -74,10 +75,10 @@ def main(argv):
   width = args.bar_width * len(labels) / 5
 
   # make the actual plot
-  pyplot = matplotliblib.preplot(**vars(args))
-  pyplot.bar(xlocations, values, width, color=args.color)
-  pyplot.xticks(xlocations + width/2, labels)
-  matplotliblib.plot(pyplot, **vars(args))
+  axes = plotter.preplot(**vars(args))
+  axes.bar(xlocations, values, width, color=args.color)
+  plotter.set_ticks(xlocations + width/2, labels, axis='x')
+  plotter.plot(**vars(args))
 
 
 if __name__ == '__main__':

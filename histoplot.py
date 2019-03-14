@@ -43,8 +43,10 @@ def make_parser():
 
 def main(argv):
 
+  plotter = matplotliblib.PlotHelper()
+
   parser = make_parser()
-  matplotliblib.add_arguments(parser)
+  plotter.add_arguments(parser)
   args = parser.parse_args(argv[1:])
 
   logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')
@@ -61,7 +63,7 @@ def main(argv):
   bins, bin_range = get_edges(args.bins, args.bin_edges, args.bin_range, args.range, args.unity,
                               top, bottom)
 
-  make_plot(data, args, bins, bin_range)
+  make_plot(plotter, data, args, bins, bin_range)
 
 
 def read_data(input, field, tab):
@@ -115,11 +117,11 @@ def get_edges(bins_arg, bin_edges, bin_range_arg, range_arg, unity, top, bottom)
   return bins, bin_range
 
 
-def make_plot(data, args, bins, bin_range):
+def make_plot(plotter, data, args, bins, bin_range):
   # make the actual plot
-  axes = matplotliblib.preplot(**vars(args))
+  axes = plotter.preplot(**vars(args))
   axes.hist(data, bins=bins, range=bin_range, color=args.color)
-  matplotliblib.plot(axes, **vars(args))
+  plotter.plot(**vars(args))
 
 
 def fail(message):

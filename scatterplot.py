@@ -98,8 +98,10 @@ def make_parser():
 
 def main(argv):
 
+  plotter = matplotliblib.PlotHelper()
+
   parser = make_parser()
-  matplotliblib.add_arguments(parser)
+  plotter.add_arguments(parser)
   args = parser.parse_args(argv[1:])
 
   logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')
@@ -177,7 +179,7 @@ def main(argv):
       log_transform_heatmap(heatmap)
 
   # Create the Axes object.
-  axes = matplotliblib.preplot(**vars(args))
+  axes = plotter.preplot(**vars(args))
 
   # Plot the data.
   if args.heatmap:
@@ -208,10 +210,10 @@ def main(argv):
   # Label time axis.
   if args.unix_time and args.time_disp == 'date':
     multiplot = args.tag_field is not None
-    set_time_ticks(axes, x, y, multiplot, args.unix_time, args.time_disp, time_field, args.date_ticks)
+    set_time_ticks(plotter, x, y, multiplot, args.unix_time, args.time_disp, time_field, args.date_ticks)
 
   # Do final adjustments and show the plot.
-  matplotliblib.plot(axes, **vars(args))
+  plotter.plot(**vars(args))
 
 
 def read_data(input, fields, tab, time_disp, time_unit, head, start, end):
@@ -346,10 +348,10 @@ def log_transform_heatmap(heatmap):
         row[i] = math.log10(row[i])
 
 
-def set_time_ticks(axes, x, y, multiplot, unix_time, time_disp, time_field, date_ticks):
+def set_time_ticks(plotter, x, y, multiplot, unix_time, time_disp, time_field, date_ticks):
   params = get_tick_params(x, y, multiplot, unix_time, time_disp, time_field, date_ticks)
   tick_values, tick_labels = get_time_ticks(*params)
-  matplotliblib.set_ticks(axes, tick_values, tick_labels, axis=time_field)
+  plotter.set_ticks(tick_values, tick_labels, axis=time_field)
 
 
 def get_start_or_end(time_str):
