@@ -55,8 +55,12 @@ def make_parser():
     help='Divide the X axis into this many bins. Overrides --bins.')
   heat.add_argument('--y-bins', type=int,
     help='Divide the Y axis into this many bins. Overrides --bins.')
+  heat.add_argument('--color-bar', metavar='Title',
+    help='Provide a legend labeling the heatmap colors, and use this title.')
   heat.add_argument('--log-scale', action='store_true',
     help='Plot the log10 of the counts, not the absolute counts.')
+  heat.add_argument('--log0', action='store_true',
+    help='Adjust the counts to make zeroes plottable: log10(counts + 0.1) + 1')
   heat.add_argument('--color-map', default='viridis',
     help='Color scheme to use for the heatmap. "Blues" is a nice one where 0 is white. Or, for a '
       'more classic "heat" scale, "jet". Default: %(default)s')
@@ -176,7 +180,7 @@ def main(argv):
     heatmap, extents = get_heatmap_counts(x, y, xbins, ybins)
     logging.debug('extents: xmin: {0}, xmax: {1}, ymin: {2}, ymax: {3}'.format(*extents))
     if args.log_scale:
-      log_transform_heatmap(heatmap)
+      log_transform_heatmap(heatmap, args.log0)
 
   # Create the Axes object.
   axes = plotter.preplot(**vars(args))
@@ -185,8 +189,12 @@ def main(argv):
   if args.heatmap:
     # aspect='auto' to prevent it from forcing the x and y axis scales to be equal.
     # (a.k.a. The "Tejaswini Mishra Fix")
-    axes.imshow(heatmap, cmap=args.color_map, extent=extents, aspect='auto', origin='lower',
-                interpolation='nearest')
+    image = axes.imshow(heatmap, cmap=args.color_map, extent=extents, aspect='auto', origin='lower',
+                        interpolation='nearest')
+    if args.color_bar is not None:
+      colorbar = plotter.figure.colorbar(image)
+      if args.color_bar:
+        colorbar.set_label(args.color_bar)
   elif args.tag_field is None:
     axes.scatter(x, y, c=args.color, s=args.point_size)
   else:
@@ -339,11 +347,11 @@ def format_heatmap_counts_debug(heatmap):
   return out_lines
 
 
-def log_transform_heatmap(heatmap):
+def log_transform_heatmap(heatmap, zero_offset=False):
   for row in heatmap:
     for i in range(len(row)):
-      if row[i] == 0:
-        row[i] = math.log10(row[i]+0.001)
+      if zero_offset:
+        row[i] = math.log10(row[i]+0.1)+1
       else:
         row[i] = math.log10(row[i])
 
