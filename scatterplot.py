@@ -44,6 +44,22 @@ def make_parser():
     help='Only plot the last X data points in the input file.')
   parser.add_argument('-S', '--point-size', type=int, default=30,
     help='Size of the data points in the plot. Default: %(default)s')
+  heat = parser.add_argument_group('Heatmap')
+  heat.add_argument('-M', '--heatmap', action='store_true',
+    help='Make a heatmap: essentially a 2D histogram of how many points are in each rectangle. '
+         'Not compatible with multiple data series.')
+  heat.add_argument('-b', '--bins', type=int, default=10,
+    help='Use this number of 1-dimensional bins on each axis, so that the actual number of 2-'
+      'dimensional bins is the square of this. Default: %(default)s')
+  heat.add_argument('--x-bins', type=int,
+    help='Divide the X axis into this many bins. Overrides --bins.')
+  heat.add_argument('--y-bins', type=int,
+    help='Divide the Y axis into this many bins. Overrides --bins.')
+  heat.add_argument('--log-scale', action='store_true',
+    help='Plot the log10 of the counts, not the absolute counts.')
+  heat.add_argument('--color-map', default='viridis',
+    help='Color scheme to use for the heatmap. "Blues" is a nice one where 0 is white. Or, for a '
+      'more classic "heat" scale, "jet". Default: %(default)s')
   multi = parser.add_argument_group('Multiple data series')
   multi.add_argument('-g', '--tag-field', type=int,
     help='The input contains multiple data series, distinguished by this column. '
@@ -96,6 +112,9 @@ def main(argv):
   if (args.start or args.end) and not args.unix_time:
     fail('Error: --start and --end are invalid without --unix-time.')
 
+  if args.heatmap and args.tag_field:
+    fail('Error: --heatmap not compatible with --tag-field.')
+
   start = get_start_or_end(args.start)
   end = get_start_or_end(args.end)
 
@@ -145,11 +164,28 @@ def main(argv):
     logging.info('No data found.')
     return 0
 
+  # Bin the data for heatmaps.
+  if args.heatmap:
+    xbins = ybins = args.bins
+    if args.x_bins:
+      xbins = args.x_bins
+    if args.y_bins:
+      ybins = args.y_bins
+    heatmap, extents = get_heatmap_counts(x, y, xbins, ybins)
+    logging.debug('extents: xmin: {0}, xmax: {1}, ymin: {2}, ymax: {3}'.format(*extents))
+    if args.log_scale:
+      log_transform_heatmap(heatmap)
+
   # Create the Axes object.
   axes = matplotliblib.preplot(**vars(args))
 
   # Plot the data.
-  if args.tag_field is None:
+  if args.heatmap:
+    # aspect='auto' to prevent it from forcing the x and y axis scales to be equal.
+    # (a.k.a. The "Tejaswini Mishra Fix")
+    axes.imshow(heatmap, cmap=args.color_map, extent=extents, aspect='auto', origin='lower',
+                interpolation='nearest')
+  elif args.tag_field is None:
     axes.scatter(x, y, c=args.color, s=args.point_size)
   else:
     handles = []
@@ -185,6 +221,7 @@ def read_data(input, fields, tab, time_disp, time_unit, head, start, end):
     casts = (True, True, False, False)
   labels = {}
   now = int(time.time())
+  #TODO: Get and return the xmaxes and ymaxes while reading the input.
   x_serieses = {}
   y_serieses = {}
   x = []
@@ -262,6 +299,51 @@ def normalize(x_serieses, y_serieses):
       factor = 1
     for i, yval in enumerate(y_series):
       y_series[i] = yval/factor
+
+
+def get_heatmap_counts(x, y, xbins, ybins):
+  # Initialize the heatmap counts.
+  heatmap = []
+  for ybin in range(ybins):
+    heatmap.append([0] * xbins)
+  # Get the min/max data values.
+  xmin = min(x)
+  xmax = max(x)
+  ymin = min(y)
+  ymax = max(y)
+  # Make the first bin centered on the minimum value and the last bin centered on the maximum one.
+  xbin_width = (xmax - xmin) / (xbins-1)
+  xleft_edge = xmin - xbin_width/2
+  ybin_height = (ymax - ymin) / (ybins-1)
+  ybottom_edge = ymin - ybin_height/2
+  for xval, yval in zip(x, y):
+    # bins are half-open: [bin_min, bin_max).
+    xbin = int((xval - xleft_edge) / xbin_width)
+    ybin = int((yval - ybottom_edge) / ybin_height)
+    heatmap[ybin][xbin] += 1
+  return heatmap, (xmin, xmax, ymin, ymax)
+
+
+def format_heatmap_counts_debug(heatmap):
+  """Create an ascii matrix of heatmap counts.
+  Returns a series of lines (no newlines), ready to be printed."""
+  out_lines = []
+  max_val = max([max(row) for row in heatmap])
+  fwidth = int(math.log10(max_val)+1)
+  fmt_str = '{:'+str(fwidth)+'d}'
+  for row in reversed(heatmap):
+    for i in range(len(row)):
+      out_lines.append(' '.join([fmt_str.format(val) for val in row]))
+  return out_lines
+
+
+def log_transform_heatmap(heatmap):
+  for row in heatmap:
+    for i in range(len(row)):
+      if row[i] == 0:
+        row[i] = math.log10(row[i]+0.001)
+      else:
+        row[i] = math.log10(row[i])
 
 
 def set_time_ticks(axes, x, y, multiplot, unix_time, time_disp, time_field, date_ticks):
