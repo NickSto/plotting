@@ -15,26 +15,31 @@ EPILOG = """Caution: It holds the entire dataset in memory, as a list."""
 
 
 def make_parser():
-  parser = argparse.ArgumentParser(usage=USAGE, description=DESCRIPTION,
+  groups = {}
+  parser = argparse.ArgumentParser(usage=USAGE, description=DESCRIPTION, add_help=False,
     epilog=EPILOG)
   parser.set_defaults(**OPT_DEFAULTS)
-  parser.add_argument('input', nargs='?', type=argparse.FileType('r'), default=sys.stdin,
+  input = parser.add_argument_group('Input')
+  groups['input'] = input
+  input.add_argument('input', nargs='?', type=argparse.FileType('r'), default=sys.stdin,
     help='Data file. If omitted, data will be read from stdin. Each line '
       'should contain one number.')
-  parser.add_argument('-f', '--field', type=int, default=1,
+  input.add_argument('-f', '--field', type=int, default=1,
     help='Read this column from the input. Give a 1-based index. Columns are '
       'whitespace-delimited unless --tab is given. Default column: %(default)s.')
-  parser.add_argument('-t', '--tab', action='store_true',
+  input.add_argument('-t', '--tab', action='store_true',
     help='Split fields on single tabs instead of whitespace.')
-  parser.add_argument('-u', '--unity', action='store_true',
+  binning = parser.add_argument_group('Binning')
+  groups['binning'] = binning
+  binning.add_argument('-u', '--unity', action='store_true',
     help='Use a bin size of 1.')
-  parser.add_argument('-b', '--bins', type=int,
+  binning.add_argument('-b', '--bins', type=int,
     help='Number of histogram bins. Default: {}.'.format(DEFAULT_BINS))
-  parser.add_argument('-B', '--bin-edges', nargs='+', type=float,
+  binning.add_argument('-B', '--bin-edges', nargs='+', type=float,
     help='Specify the exact edges of each bin. Give the value of each bin edge '
       'as a separate argument. Overrides --bins.')
   #TODO: clarify relationship between bin_range, x_range, and range
-  parser.add_argument('-R', '--bin-range', type=float, nargs=2, metavar='BOUND',
+  binning.add_argument('-R', '--bin-range', type=float, nargs=2, metavar='BOUND',
     help='Range of the bins only. This will be used when calculating the size '
       'of the bins (unless -B is given), but it won\'t affect the scaling of '
       'the X axis. Give the lower bound, then the upper.')

@@ -18,10 +18,12 @@ EPILOG = """Caution: It holds the entire dataset in memory, as a list."""
 
 
 def make_parser():
-  parser = argparse.ArgumentParser(usage=USAGE, description=DESCRIPTION,
-    epilog=EPILOG)
+  parser = argparse.ArgumentParser(usage=USAGE, description=DESCRIPTION, epilog=EPILOG,
+    add_help=False)
   parser.set_defaults(**OPT_DEFAULTS)
+  groups = {}
   input = parser.add_argument_group('Input data')
+  groups['input'] = input
   input.add_argument('input', nargs='?', type=argparse.FileType('r'), default=sys.stdin,
     help='Data file. If omitted, data will be read from stdin. Each line '
       'should contain two numbers.')
@@ -42,9 +44,12 @@ def make_parser():
     help='Only plot the first X data points in the input file.')
   input.add_argument('--tail', type=int,
     help='Only plot the last X data points in the input file.')
-  parser.add_argument('-S', '--point-size', type=int, default=30,
+  data_disp = parser.add_argument_group('Data appearance')
+  groups['data_disp'] = data_disp
+  data_disp.add_argument('-S', '--point-size', type=int, default=30,
     help='Size of the data points in the plot. Default: %(default)s')
   heat = parser.add_argument_group('Heatmap')
+  groups['heat'] = heat
   heat.add_argument('-M', '--heatmap', action='store_true',
     help='Make a heatmap: essentially a 2D histogram of how many points are in each rectangle. '
          'Not compatible with multiple data series.')
@@ -65,6 +70,7 @@ def make_parser():
     help='Color scheme to use for the heatmap. "Blues" is a nice one where 0 is white. Or, for a '
       'more classic "heat" scale, "jet". Default: %(default)s')
   multi = parser.add_argument_group('Multiple data series')
+  groups['multi'] = multi
   multi.add_argument('-g', '--tag-field', type=int,
     help='The input contains multiple data series, distinguished by this column. '
          'This column should identify which series the data point belongs to. It can be any '
@@ -82,6 +88,7 @@ def make_parser():
   multi.add_argument('--line', action='store_true',
     help='Do a line plot instead of a scatter plot.')
   timedate = parser.add_argument_group('Time/date handling')
+  groups['timedate'] = timedate
   timedate.add_argument('-u', '--unix-time', choices=('X', 'Y', 'x', 'y'),
     help='Interpret the values for this axis as unix timestamps.')
   timedate.add_argument('--date', dest='time_disp', action='store_const', const='date', default='ago',
@@ -97,15 +104,15 @@ def make_parser():
          '"25 minutes", "10yr", etc., to specify an amount of time in the past.')
   timedate.add_argument('-e', '--end',
     help='Only plot points at or before this time. Same format as --start.')
-  return parser
+  return parser, groups
 
 
 def main(argv):
 
   plotter = matplotliblib.PlotHelper()
 
-  parser = make_parser()
-  plotter.add_arguments(parser)
+  parser, groups = make_parser()
+  plotter.add_arguments(parser, groups)
   args = parser.parse_args(argv[1:])
 
   logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')

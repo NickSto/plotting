@@ -23,48 +23,70 @@ class PlotHelper(object):
     self.dpi = None
     self.figsize = None
 
-  def add_arguments(self, parser):
+  def _get_or_add_argument_group(self, parser, group_name, group_title, existing_groups):
+    if group_name in existing_groups:
+      group = existing_groups[group_name]
+    else:
+      group = parser.add_argument_group(group_title)
+      existing_groups[group_name] = group
+    return group
+
+  def add_arguments(self, parser, groups=None):
     """Add global matplotlib plotting arguments to the argparse parser."""
-    parser.add_argument('-T', '--title',
-      help='Plot title. Default: "%(default)s".')
-    parser.add_argument('-X', '--x-label',
+    if groups is None:
+      groups = {}
+    labels = self._get_or_add_argument_group(parser, 'labels', 'Labeling', groups)
+    labels.add_argument('-T', '--title',
+      help='Plot title. Default: None.')
+    labels.add_argument('-X', '--x-label',
       help='Label for the X axis. Default: "%(default)s".')
-    parser.add_argument('-Y', '--y-label',
+    labels.add_argument('-Y', '--y-label',
       help='Label for the Y axis. Default: "%(default)s".')
-    parser.add_argument('-r', '--range', type=float, nargs=2, metavar='BOUND',
+    ranges = self._get_or_add_argument_group(parser, 'ranges', 'Ranges', groups)
+    ranges.add_argument('-r', '--range', type=float, nargs=2, metavar='BOUND',
       help='Range of the axes. Both X and Y will have the same range. Give the '
         'lower bound, then the upper.')
-    parser.add_argument('--x-range', type=float, nargs=2, metavar='BOUND',
+    ranges.add_argument('--x-range', type=float, nargs=2, metavar='BOUND',
       help='Range of the X axis. Give the lower bound, then the upper.')
-    parser.add_argument('--y-range', type=float, nargs=2, metavar='BOUND',
+    ranges.add_argument('--y-range', type=float, nargs=2, metavar='BOUND',
       help='Range of the Y axis. Give the lower bound, then the upper.')
-    parser.add_argument('-W', '--width', type=int,
+    data_disp = self._get_or_add_argument_group(parser, 'data_disp', 'Data appearance', groups)
+    data_disp.add_argument('-C', '--color', default='cornflowerblue',
+      help='Color for the plot data elements. Can use any CSS color. Default: '
+        '"%(default)s".')
+    image = self._get_or_add_argument_group(parser, 'image', 'Image output', groups)
+    image.add_argument('-W', '--width', type=int,
       help='Width of the output image, in pixels. Default: {width}px.'.format(
         **DEFAULTS))
-    parser.add_argument('-H', '--height', type=int,
+    image.add_argument('-H', '--height', type=int,
       help='Height of the output image, in pixels. Default: {height}px.'.format(
         **DEFAULTS))
-    parser.add_argument('-D', '--dpi', type=int,
+    image.add_argument('-D', '--dpi', type=int,
       help='DPI of the image. If a height or width is given, a larger DPI will '
         'effectively just scale up the plot features, and a smaller DPI will '
         'scale them down. Default: {dpi}dpi.'.format(**DEFAULTS))
-    parser.add_argument('--no-tight', action='store_true',
-      help='Turn off tight_layout() (in case it\'s causing problems).')
-    parser.add_argument('-C', '--color', default='cornflowerblue',
-      help='Color for the plot data elements. Can use any CSS color. Default: '
-        '"%(default)s".')
-    parser.add_argument('-o', '--out-file', metavar='OUTPUT_FILE',
+    image.add_argument('-o', '--out-file', metavar='OUTPUT_FILE',
       help='Save the plot to this file instead of displaying it. The image '
         'format will be inferred from the file extension.')
-    parser.add_argument('-L', '--log', type=argparse.FileType('w'), default=sys.stderr,
+    log = self._get_or_add_argument_group(parser, 'log', 'Logging', groups)
+    log.add_argument('-L', '--log', type=argparse.FileType('w'), default=sys.stderr,
       help='Print log messages to this file instead of to stderr. Warning: Will overwrite the file.')
-    volume = parser.add_mutually_exclusive_group()
+    volume = log.add_mutually_exclusive_group()
     volume.add_argument('-q', '--quiet', dest='volume', action='store_const', const=logging.CRITICAL,
       default=logging.WARNING)
     volume.add_argument('-v', '--verbose', dest='volume', action='store_const', const=logging.INFO)
     volume.add_argument('--debug', dest='volume', action='store_const', const=logging.DEBUG)
+    misc = self._get_or_add_argument_group(parser, 'misc', 'Misc', groups)
+    misc.add_argument('--no-tight', action='store_true',
+      help='Turn off tight_layout() (in case it\'s causing problems).')
+    try:
+      misc.add_argument('-h', '--help', action='help',
+        help='Print this help text.')
+    except argparse.ArgumentError as error:
+      sys.stderr.write('Error: Problem adding --help argument. Make sure the ArgumentParser was '
+                       'constructed with the add_help option set to False.\n\n')
+      raise
     return parser
-
 
   def scale(self, defaults=DEFAULTS, **args):
     """Calculate the correct dpi and figsize to scale the image as the user
@@ -116,7 +138,6 @@ class PlotHelper(object):
       self.figsize = defaults['figsize']
     return self.dpi, self.figsize
 
-
   def set_ticks(self, tick_values, tick_labels, axis='x'):
     if axis.lower() == 'x':
       self.axes.set_xticks(tick_values)
@@ -124,7 +145,6 @@ class PlotHelper(object):
     elif axis.lower() == 'y':
       self.axes.set_yticks(tick_values, tick_labels)
       self.axes.set_yticklabels(tick_labels)
-
 
   def preplot(self, **args):
     """Set up the initial pyplot figure parameters, return an Axes object.
@@ -143,7 +163,6 @@ class PlotHelper(object):
     # figure.set_figwidth(14)
     self.axes = self.figure.add_subplot(1, 1, 1)
     return self.axes
-
 
   def plot(self, **args):
     """Add options to a plot, and either display it or save it.

@@ -17,30 +17,35 @@ EPILOG = """Caution: It holds the entire dataset in memory."""
 
 def main(argv):
 
-  parser = argparse.ArgumentParser(usage=USAGE, description=DESCRIPTION,
-    epilog=EPILOG)
+  groups = {}
+  parser = argparse.ArgumentParser(usage=USAGE, description=DESCRIPTION, epilog=EPILOG,
+    add_help=False)
   parser.set_defaults(**OPT_DEFAULTS)
-  parser.add_argument('file', nargs='?', metavar='file.txt',
+  input = parser.add_argument_group('Input')
+  groups['input'] = input
+  input.add_argument('file', nargs='?', metavar='file.txt',
     help='Data file. If omitted, data will be read from stdin. Each line '
       'should contain one number.')
-  parser.add_argument('-l', '--label-field', type=int,
+  input.add_argument('-l', '--label-field', type=int,
     help='Read this column from the input as the data labels. Give a 1-based '
     'index. Columns are whitespace-delimited unless --tab is given. Default '
     'column: %(default)s.')
-  parser.add_argument('-f', '--data-field', type=int,
+  input.add_argument('-f', '--data-field', type=int,
     help='Read this column from the input as the data. Give a 1-based index. '
     'Columns are whitespace-delimited unless --tab is given. Default column: '
     '%(default)s.')
-  parser.add_argument('-t', '--tab', action='store_true',
+  input.add_argument('-t', '--tab', action='store_true',
     help='Split fields on single tabs instead of whitespace.')
-  parser.add_argument('-w', '--bar-width', type=float,
+  data_disp = parser.add_argument_group('Data appearance')
+  groups['data_disp'] = data_disp
+  data_disp.add_argument('-w', '--bar-width', type=float,
     help='Relative width of each bar. A relative width of 1 means each bar '
     'wil be the full width of its interval, with no spacing between bars. '
     'Default: %(default)s.')
 
   plotter = matplotliblib.PlotHelper()
 
-  plotter.add_arguments(parser)
+  plotter.add_arguments(parser, groups)
   args = parser.parse_args(argv[1:])
 
   if args.file:
