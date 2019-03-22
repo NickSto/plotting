@@ -114,7 +114,7 @@ class PlotHelper(object):
       if args['width'] and args['height']:
         # If they did give a width/height, a custom dpi will scale the elements
         # in the plot.
-        self.figsize = (args['width']/dpi, args['height']/dpi)
+        self.figsize = (args['width']/self.dpi, args['height']/self.dpi)
       else:
         self.figsize = defaults['figsize']
     elif args['width'] and args['height']:
