@@ -12,7 +12,7 @@ if not os.getenv('DISPLAY'):
 
 import matplotlib.pyplot
 
-DEFAULTS = {'figsize':(8,6), 'dpi':80, 'width':640, 'height':480}
+DEFAULTS = {'dpi':80, 'width':640, 'height':480}
 
 
 class PlotHelper(object):
@@ -56,15 +56,14 @@ class PlotHelper(object):
         '"%(default)s".')
     image = self._get_or_add_argument_group(parser, 'image', 'Image output', groups)
     image.add_argument('-W', '--width', type=int,
-      help='Width of the output image, in pixels. Default: {width}px.'.format(
-        **DEFAULTS))
+      help='Width of the output image, in pixels. The default aspect ratio will be maintained '
+        'unless --height is also given. Default: {width}px.'.format(**DEFAULTS))
     image.add_argument('-H', '--height', type=int,
-      help='Height of the output image, in pixels. Default: {height}px.'.format(
-        **DEFAULTS))
-    image.add_argument('-D', '--dpi', type=int,
-      help='DPI of the image. If a height or width is given, a larger DPI will '
-        'effectively just scale up the plot features, and a smaller DPI will '
-        'scale them down. Default: {dpi}dpi.'.format(**DEFAULTS))
+      help='Height of the output image, in pixels. The default aspect ratio will be maintained '
+        'unless --height is also given. Default: {height}px.'.format(**DEFAULTS))
+    image.add_argument('-F', '--feature-scale', type=float, default=1,
+      help='Change the size of the features in the image. Increase this value to make the text, '
+        'lines, points, etc. larger. Default: %(default)s')
     image.add_argument('-o', '--out-file', metavar='OUTPUT_FILE',
       help='Save the plot to this file instead of displaying it. The image '
         'format will be inferred from the file extension.')
@@ -93,49 +92,35 @@ class PlotHelper(object):
     requested.
     Required keyword arguments: 'dpi', 'width', 'height'
     """
-    # assumptions
-    assert 'dpi' in args and 'width' in args and 'height' in args, (
+    # Note: At least when generating PNGs, "dpi" basically means pixels per inch, and figsize
+    # is measured in inches. So a figsize (8, 6) image with a 180 dpi will be 8*180 = 1440px wide
+    # and 6*180 = 1080px high. And the pixel-size of the features in the plot are determined by the
+    # dpi. So the text in a 180 dpi image will be the same size in pixels, whether it's in a (8, 6)
+    # figsize (1440px, 1080px) image or a (4, 3) figsize (720px, 540px) image.
+    # Argument assumptions:
+    assert 'feature_scale' in args and 'width' in args and 'height' in args, (
       'Necessary command-line arguments are missing.'
     )
-    default_ratio = defaults['figsize'][0] / defaults['figsize'][1]
-    pixel_ratio = defaults['width'] / defaults['height']
-    assert default_ratio == pixel_ratio, 'Default aspect ratios do not match.'
-    # If only a width or height is given, infer the other dimension, assuming the
-    # default aspect ratio.
-    if args['width'] and not args['height']:
-      args['height'] = args['width'] / default_ratio
-    elif args['height'] and not args['width']:
-      args['width'] = args['height'] * default_ratio
-    # Did the user specify a dpi?
-    if args['dpi']:
-      # If user gave a dpi, use it.
-      # If user gives no width or height, a custom dpi will resize the plot.
-      self.dpi = args['dpi']
-      if args['width'] and args['height']:
-        # If they did give a width/height, a custom dpi will scale the elements
-        # in the plot.
-        self.figsize = (args['width']/self.dpi, args['height']/self.dpi)
+    # Figure out the pixel width and height of the image, maintaining the default aspect ratio
+    # unless explicitly requested to do otherwise.
+    default_aspect_ratio = defaults['width'] / defaults['height']
+    if args['width'] is None:
+      if args['height'] is None:
+        width = defaults['width']
       else:
-        self.figsize = defaults['figsize']
-    elif args['width'] and args['height']:
-      # If user gives a width or height and no dpi, scale both dpi and figsize.
-      ratio = args['width'] / args['height']
-      if ratio > default_ratio:
-        scale = args['height'] / defaults['height']
-        self.figsize = (
-          defaults['figsize'][0] * (ratio/default_ratio),
-          defaults['figsize'][1]
-        )
-      else:
-        scale = args['width'] / defaults['width']
-        self.figsize = (
-          defaults['figsize'][0],
-          defaults['figsize'][1] / (ratio/default_ratio)
-        )
-      self.dpi = scale * defaults['dpi']
+        width = args['height'] * default_aspect_ratio
     else:
-      self.dpi = defaults['dpi']
-      self.figsize = defaults['figsize']
+      width = args['width']
+    if args['height'] is None:
+      if args['width'] is None:
+        height = defaults['height']
+      else:
+        height = args['width'] / default_aspect_ratio
+    else:
+      height = args['height']
+    image_scale = min(width/defaults['width'], height/defaults['height'])
+    self.dpi = defaults['dpi'] * args['feature_scale'] * image_scale
+    self.figsize = (width/self.dpi, height/self.dpi)
     return self.dpi, self.figsize
 
   def set_ticks(self, tick_values, tick_labels, axis='x'):
