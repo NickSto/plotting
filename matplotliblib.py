@@ -54,6 +54,8 @@ class PlotHelper(object):
     data_disp.add_argument('-C', '--color', default='cornflowerblue',
       help='Color for the plot data elements. Can use any CSS color. Default: '
         '"%(default)s".')
+    data_disp.add_argument('-d', '--grid', action='store_true',
+      help='Show gridlines.')
     image = self._get_or_add_argument_group(parser, 'image', 'Image output', groups)
     image.add_argument('-W', '--width', type=int,
       help='Width of the output image, in pixels. The default aspect ratio will be maintained '
@@ -177,6 +179,8 @@ class PlotHelper(object):
     self.axes.set_ylabel(args['y_label'])
     if args['title']:
       self.axes.set_title(args['title'])
+    if args['grid']:
+      self.axes.grid()
     if not args.get('no_tight'):
       matplotlib.pyplot.tight_layout()
     # Display or save
