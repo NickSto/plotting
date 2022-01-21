@@ -48,6 +48,8 @@ def make_parser():
   groups['data_disp'] = data_disp
   data_disp.add_argument('-S', '--point-size', type=int, default=30,
     help='Size of the data points in the plot. Default: %(default)s')
+  data_disp.add_argument('-B', '--bar', action='store_true',
+    help='Display with bars instead of points. Does not work with --tag-field.')
   heat = parser.add_argument_group('Heatmap')
   groups['heat'] = heat
   heat.add_argument('-M', '--heatmap', action='store_true',
@@ -195,7 +197,6 @@ def main(argv):
   # Plot the data.
   if args.heatmap:
     # aspect='auto' to prevent it from forcing the x and y axis scales to be equal.
-    # (a.k.a. The "Tejaswini Mishra Fix")
     image = axes.imshow(heatmap, cmap=args.color_map, extent=extents, aspect='auto', origin='lower',
                         interpolation='nearest')
     if args.color_bar is not None:
@@ -203,7 +204,10 @@ def main(argv):
       if args.color_bar:
         colorbar.set_label(args.color_bar)
   elif args.tag_field is None:
-    axes.scatter(x, y, c=args.color, s=args.point_size)
+    if args.bar:
+      axes.bar(x, y, color=args.color)
+    else:
+      axes.scatter(x, y, c=args.color, s=args.point_size)
   else:
     handles = []
     tags = list(x.keys())
